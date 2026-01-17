@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/s33g/proj/internal/docker"
 	"github.com/s33g/proj/internal/project"
 	"github.com/s33g/proj/internal/scripts"
 	"github.com/s33g/proj/internal/tui"
@@ -224,6 +225,22 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 				Command: s.Command,
 				Source:  s.Source,
 			})
+		}
+	}
+
+	// Docker actions
+	if proj.HasDockerfile || proj.HasCompose {
+		dockerInfo, err := docker.Detect(proj.Path)
+		if err == nil {
+			dockerActions := docker.GetActionsForProject(dockerInfo)
+			for _, da := range dockerActions {
+				actions = append(actions, Action{
+					ID:    da.ID,
+					Label: da.Name,
+					Desc:  da.Description,
+					Icon:  "", // Icons are already in the Name
+				})
+			}
 		}
 	}
 

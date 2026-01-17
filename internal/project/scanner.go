@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/s33g/proj/internal/config"
+	"github.com/s33g/proj/internal/docker"
 	"github.com/s33g/proj/internal/git"
 	"github.com/s33g/proj/internal/language"
 )
@@ -21,6 +22,8 @@ type Project struct {
 	GitDirty     bool
 	IsGitRepo    bool
 	LastModified time.Time
+	HasDockerfile bool
+	HasCompose    bool
 }
 
 // Scanner scans directories for projects
@@ -109,6 +112,13 @@ func (s *Scanner) scanProject(name, path string) (*Project, error) {
 		project.IsGitRepo = gitStatus.IsRepo
 		project.GitBranch = gitStatus.Branch
 		project.GitDirty = gitStatus.IsDirty
+	}
+
+	// Detect Docker
+	dockerInfo, err := docker.Detect(path)
+	if err == nil {
+		project.HasDockerfile = dockerInfo.HasDockerfile
+		project.HasCompose = dockerInfo.HasCompose
 	}
 
 	return project, nil

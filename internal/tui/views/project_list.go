@@ -111,6 +111,13 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 	}
 
+	// Docker indicators
+	if p.HasCompose {
+		line.WriteString("  🐙")
+	} else if p.HasDockerfile {
+		line.WriteString("  🐳")
+	}
+
 	fmt.Fprint(w, line.String())
 }
 
@@ -218,7 +225,15 @@ func ProjectList(projects []*project.Project, cursor int) string {
 			gitInfo = tui.BadgeStyle.Render(fmt.Sprintf(" %s ", branch))
 		}
 
-		line := fmt.Sprintf("%s%s  %s %s", prefix, name, langIcon, gitInfo)
+		// Docker info
+		dockerInfo := ""
+		if p.HasCompose {
+			dockerInfo = " 🐙"
+		} else if p.HasDockerfile {
+			dockerInfo = " 🐳"
+		}
+
+		line := fmt.Sprintf("%s%s  %s %s%s", prefix, name, langIcon, gitInfo, dockerInfo)
 		b.WriteString(line + "\n")
 	}
 

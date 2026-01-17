@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/s33g/proj/internal/config"
+	"github.com/s33g/proj/internal/docker"
 	"github.com/s33g/proj/internal/git"
 	"github.com/s33g/proj/internal/project"
 )
@@ -33,6 +34,11 @@ func NewExecutor(cfg *config.Config) *Executor {
 
 // Execute executes an action on a project
 func (e *Executor) Execute(actionID string, proj *project.Project) Result {
+	// Check if it's a Docker action
+	if strings.HasPrefix(actionID, "docker-") || strings.HasPrefix(actionID, "compose-") {
+		return e.executeDockerAction(actionID, proj)
+	}
+
 	switch actionID {
 	case "open-editor":
 		return e.openEditor(proj)
@@ -454,4 +460,24 @@ func (e *Executor) EditorExists() bool {
 		return commandExists(editorCmd)
 	}
 	return commandExists(cmdArgs[0])
+}
+
+// executeDockerAction executes a Docker action
+func (e *Executor) executeDockerAction(actionID string, proj *project.Project) Result {
+	// Get Docker info for the project
+	dockerInfo, err := docker.Detect(proj.Path)
+	if err != nil {
+		return Result{
+			Success: false,
+			Message: fmt.Sprintf("Failed to detect Docker files: %v", err),
+		}
+	}
+
+	// Execute the Docker action
+	result := docker.Execute(actionID, proj.Path, proj.Name, dockerInfo)
+
+	return Result{
+		Success: result.Success,
+		Message: result.Message,
+	}
 }

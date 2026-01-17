@@ -11,8 +11,9 @@ A fast, intuitive TUI project navigator for developers. Quickly browse, open, an
 - **Fast Project Discovery** - Instantly scan and list all projects in your code directory
 - **Language Detection** - Automatically detects 17+ programming languages
 - **Git Integration** - Shows branch, dirty status, and supports git operations
+- **Docker & Compose Support** - Detect and manage containerized projects with built-in actions 🐳
 - **Multi-Editor Support** - VS Code, Neovim, Vim, Emacs, JetBrains IDEs, Zed, and more
-- **Built-in Actions** - Open editor, run tests, install deps, git operations
+- **Built-in Actions** - Open editor, run tests, install deps, git operations, Docker commands
 - **Plugin System** - Extend with custom actions via JSON-RPC plugins
 - **Shell Integration** - Change directory directly from the TUI
 - **Keyboard-Driven** - Vi-style navigation with intuitive shortcuts
@@ -126,6 +127,19 @@ When you select a project, these actions are available:
 | 🧪 Run Tests | Execute test suite |
 | 📦 Install Dependencies | Run package manager install |
 | 🗑️ Clean Build Artifacts | Remove build directories |
+
+**Docker Actions** (when Dockerfile or docker-compose.yml detected):
+
+| Action | Description |
+|--------|-------------|
+| 🏗️ Build Image | Build Docker image |
+| ▶️ Run Container | Run container interactively |
+| 🔄 Run Detached | Run container in background |
+| 🚀 Compose Up | Start all services |
+| 🛑 Compose Down | Stop and remove services |
+| 📋 Compose PS | List services |
+
+> See [docs/DOCKER.md](docs/DOCKER.md) for full Docker integration guide
 
 ## Configuration
 
