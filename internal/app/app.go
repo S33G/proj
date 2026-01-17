@@ -10,6 +10,7 @@ import (
 	"github.com/s33g/proj/internal/project"
 	"github.com/s33g/proj/internal/tui"
 	"github.com/s33g/proj/internal/tui/views"
+	"github.com/s33g/proj/pkg/plugin"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -29,6 +30,7 @@ const (
 // Model is the main application model
 type Model struct {
 	config          *config.Config
+	pluginRegistry  *plugin.Registry
 	view            View
 	projects        []*project.Project
 	selectedProject *project.Project
@@ -41,16 +43,34 @@ type Model struct {
 	err             error
 	message         string
 	ready           bool
-	cdPath          string // Path to change to on exit
+	cdPath          string   // Path to change to on exit
 	execCmd         []string // Command to exec on exit
 }
 
 // New creates a new application model
 func New(cfg *config.Config) Model {
+	// Setup plugin registry
+	configDir, _ := config.ConfigDir()
+	pluginsDir := filepath.Join(configDir, "plugins")
+	
+	// Also check for plugins in the project directory (for development)
+	if cwd, err := os.Getwd(); err == nil {
+		devPluginsDir := filepath.Join(cwd, "plugins")
+		if stat, err := os.Stat(devPluginsDir); err == nil && stat.IsDir() {
+			pluginsDir = devPluginsDir
+		}
+	}
+	
+	registry := plugin.NewRegistry(pluginsDir, configDir, cfg.Plugins.Enabled, cfg.Plugins.Config)
+	
+	// Load plugins (ignore errors for now)
+	_ = registry.LoadAll()
+	
 	return Model{
-		config: cfg,
-		view:   ViewLoading,
-		keys:   tui.DefaultKeyMap(),
+		config:         cfg,
+		pluginRegistry: registry,
+		view:           ViewLoading,
+		keys:           tui.DefaultKeyMap(),
 	}
 }
 
@@ -137,7 +157,29 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.newProject.Init()
 		case key.Matches(msg, m.keys.Enter):
 			if m.selectedProject = m.projectList.SelectedProject(); m.selectedProject != nil {
+				// Get built-in actions
 				actions := views.DefaultActions(m.selectedProject, m.config.Actions.EnableGitOperations, m.config.Actions.EnableTestRunner)
+				
+				// Get plugin actions
+				if m.pluginRegistry != nil {
+					pluginActions := m.getPluginActions(m.selectedProject)
+					// Insert plugin actions before the "back" action
+					if len(actions) > 0 {
+						// Find the back action
+						backIdx := len(actions) - 1
+						for i, a := range actions {
+							if a.ID == "back" {
+								backIdx = i
+								break
+							}
+						}
+						// Insert plugin actions before back
+						actions = append(actions[:backIdx], append(pluginActions, actions[backIdx:]...)...)
+					} else {
+						actions = append(actions, pluginActions...)
+					}
+				}
+				
 				m.actionMenu = views.NewActionMenuModel(m.selectedProject, actions)
 				m.view = ViewActions
 				m.updateSizes()
@@ -162,7 +204,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Executing: %s...", action.Label)
-				return m, executeAction(action.ID, m.selectedProject, m.config)
+				return m, executeAction(action.ID, m.selectedProject, m.config, m.pluginRegistry)
 			}
 			return m, nil
 		}
@@ -342,8 +384,23 @@ func loadProjects(cfg *config.Config) tea.Cmd {
 }
 
 // executeAction executes an action
-func executeAction(actionID string, proj *project.Project, cfg *config.Config) tea.Cmd {
+func executeAction(actionID string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
 	return func() tea.Msg {
+		// Try plugin actions first
+		if registry != nil {
+			pluginProj := projectToPlugin(proj)
+			result, err := registry.ExecuteAction(actionID, pluginProj)
+			if err == nil && result != nil {
+				return actionCompleteMsg{
+					success: result.Success,
+					message: result.Message,
+					cdPath:  result.CdPath,
+					execCmd: result.ExecCmd,
+				}
+			}
+		}
+		
+		// Fall back to built-in actions
 		executor := actions.NewExecutor(cfg)
 		result := executor.Execute(actionID, proj)
 		
@@ -353,6 +410,41 @@ func executeAction(actionID string, proj *project.Project, cfg *config.Config) t
 			cdPath:  result.CdPath,
 			execCmd: result.ExecCmd,
 		}
+	}
+}
+
+// getPluginActions gets actions from plugins for a project
+func (m Model) getPluginActions(proj *project.Project) []views.Action {
+	if m.pluginRegistry == nil {
+		return nil
+	}
+	
+	pluginProj := projectToPlugin(proj)
+	pluginActions := m.pluginRegistry.GetActions(pluginProj)
+	
+	// Convert plugin actions to view actions
+	viewActions := make([]views.Action, len(pluginActions))
+	for i, pa := range pluginActions {
+		viewActions[i] = views.Action{
+			ID:    pa.ID,
+			Label: pa.Label,
+			Desc:  pa.Description,
+			Icon:  pa.Icon,
+		}
+	}
+	
+	return viewActions
+}
+
+// projectToPlugin converts a project.Project to a plugin.Project
+func projectToPlugin(proj *project.Project) plugin.Project {
+	return plugin.Project{
+		Name:      proj.Name,
+		Path:      proj.Path,
+		Language:  proj.Language,
+		GitBranch: proj.GitBranch,
+		GitDirty:  proj.GitDirty,
+		IsGitRepo: proj.IsGitRepo,
 	}
 }
 
