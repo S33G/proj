@@ -71,7 +71,8 @@ func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 
 	// Icon and label
 	label := a.Label
-	if a.Icon != "" {
+	hasIcon := a.Icon != ""
+	if hasIcon {
 		label = fmt.Sprintf("%s  %s", a.Icon, label)
 	}
 	
@@ -86,10 +87,17 @@ func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 		line.WriteString(actionItemStyle.Render("  " + label))
 	}
 
-	// Description on next line
+	// Description on next line with proper indentation
+	// Account for: "  " prefix (2) + emoji (2 display width) + "  " separator (2) = 6 total
+	// Or just "  " prefix (2) if no icon
 	line.WriteString("\n")
 	if a.Desc != "" {
-		line.WriteString(actionDescStyle.Render(a.Desc))
+		descIndent := 4 // Base padding from style
+		if hasIcon {
+			descIndent += 4 // Add space for emoji (2 chars wide) + "  " separator
+		}
+		descStyle := lipgloss.NewStyle().Foreground(tui.Muted).PaddingLeft(descIndent)
+		line.WriteString(descStyle.Render(a.Desc))
 	}
 
 	fmt.Fprint(w, line.String())
