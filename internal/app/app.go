@@ -2,15 +2,18 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/s33g/proj/internal/actions"
 	"github.com/s33g/proj/internal/config"
+	"github.com/s33g/proj/internal/git"
 	"github.com/s33g/proj/internal/project"
 	"github.com/s33g/proj/internal/tui"
 	"github.com/s33g/proj/internal/tui/views"
@@ -27,6 +30,8 @@ const (
 	ViewNewProject
 	ViewExecuting
 	ViewResult
+	ViewBranches
+	ViewConfirmStash
 )
 
 // Model is the main application model
@@ -42,6 +47,8 @@ type Model struct {
 	resultViewport  viewport.Model
 	resultTitle     string
 	resultSuccess   bool
+	branchList      list.Model
+	targetBranch    string
 	keys            tui.KeyMap
 	width           int
 	height          int
@@ -88,6 +95,12 @@ type actionCompleteMsg struct {
 	cdPath      string
 	execCmd     []string
 }
+type branchesLoadedMsg []string
+type branchSwitchedMsg struct {
+	success bool
+	message string
+	branch  string
+}
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
@@ -133,6 +146,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Show result in a dedicated view
 		m.resultTitle = msg.actionLabel
+		m.resultSuccess = msg.success
+		m.resultViewport = viewport.New(m.width-4, m.height-10)
+		m.resultViewport.SetContent(msg.message)
+		m.view = ViewResult
+		return m, nil
+
+	case branchesLoadedMsg:
+		// Create branch list
+		items := make([]list.Item, len(msg))
+		for i, branch := range msg {
+			items[i] = branchItem(branch)
+		}
+		m.branchList = list.New(items, branchDelegate{}, m.width-4, m.height-10)
+		m.branchList.Title = "Switch Branch"
+		m.branchList.SetShowStatusBar(false)
+		m.branchList.SetFilteringEnabled(true)
+		m.branchList.Styles.Title = tui.TitleStyle
+		m.view = ViewBranches
+		return m, nil
+
+	case branchSwitchedMsg:
+		if msg.success {
+			// Update project's branch info
+			m.selectedProject.GitBranch = msg.branch
+			m.selectedProject.GitDirty = false
+		}
+		m.resultTitle = "Switch Branch"
 		m.resultSuccess = msg.success
 		m.resultViewport = viewport.New(m.width-4, m.height-10)
 		m.resultViewport.SetContent(msg.message)
@@ -213,6 +253,12 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.selectedProject = nil
 					return m, nil
 				}
+				// Special handling for git-branch - show interactive picker
+				if action.ID == "git-branch" {
+					m.view = ViewExecuting
+					m.message = "Loading branches..."
+					return m, loadBranches(m.selectedProject.Path)
+				}
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Executing: %s...", action.Label)
 				return m, executeAction(action.ID, action.Label, m.selectedProject, m.config, m.pluginRegistry)
@@ -250,6 +296,47 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.resultViewport, cmd = m.resultViewport.Update(msg)
 			return m, cmd
+		}
+
+	case ViewBranches:
+		switch {
+		case key.Matches(msg, m.keys.Back):
+			m.view = ViewActions
+			return m, nil
+		case key.Matches(msg, m.keys.Quit):
+			return m, tea.Quit
+		case key.Matches(msg, m.keys.Enter):
+			if item, ok := m.branchList.SelectedItem().(branchItem); ok {
+				m.targetBranch = string(item)
+				// Check if repo is dirty
+				dirty, _ := git.IsDirty(m.selectedProject.Path)
+				if dirty {
+					m.view = ViewConfirmStash
+					return m, nil
+				}
+				// Not dirty, switch directly
+				m.view = ViewExecuting
+				m.message = fmt.Sprintf("Switching to %s...", m.targetBranch)
+				return m, switchBranch(m.selectedProject.Path, m.targetBranch, false)
+			}
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.branchList, cmd = m.branchList.Update(msg)
+			return m, cmd
+		}
+
+	case ViewConfirmStash:
+		switch msg.String() {
+		case "y", "Y":
+			// Stash and switch
+			m.view = ViewExecuting
+			m.message = fmt.Sprintf("Stashing changes and switching to %s...", m.targetBranch)
+			return m, switchBranch(m.selectedProject.Path, m.targetBranch, true)
+		case "n", "N", "esc", "q":
+			// Cancel, go back to branches
+			m.view = ViewBranches
+			return m, nil
 		}
 	}
 
@@ -328,6 +415,12 @@ func (m Model) View() string {
 
 	case ViewResult:
 		return m.renderResultView()
+
+	case ViewBranches:
+		return m.renderBranchesView()
+
+	case ViewConfirmStash:
+		return m.renderConfirmStashView()
 	}
 
 	return ""
@@ -422,6 +515,63 @@ func (m Model) renderResultView() string {
 		Render(m.resultViewport.View())
 
 	help := tui.HelpStyle.Render("↑/↓: scroll  •  esc/q: close")
+
+	return tui.ContainerStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			header,
+			"",
+			content,
+			"",
+			help,
+		),
+	)
+}
+
+// renderBranchesView renders the branch selection view
+func (m Model) renderBranchesView() string {
+	header := views.ActionHeader(
+		m.selectedProject.Name,
+		m.selectedProject.Language,
+		m.selectedProject.GitBranch,
+		m.selectedProject.GitDirty,
+	)
+
+	content := m.branchList.View()
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  /: filter  •  enter: switch  •  esc: back")
+
+	return tui.ContainerStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			header,
+			"",
+			content,
+			"",
+			help,
+		),
+	)
+}
+
+// renderConfirmStashView renders the stash confirmation dialog
+func (m Model) renderConfirmStashView() string {
+	header := tui.TitleStyle.Render("⚠️  Uncommitted Changes")
+
+	message := fmt.Sprintf(
+		"You have uncommitted changes in %s.\n\n"+
+			"Do you want to stash them before switching to '%s'?\n\n"+
+			"  [Y] Yes, stash and switch\n"+
+			"  [N] No, cancel",
+		m.selectedProject.Name,
+		m.targetBranch,
+	)
+
+	content := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("214")).
+		Padding(1, 2).
+		Render(message)
+
+	help := tui.HelpStyle.Render("y: stash and switch  •  n/esc: cancel")
 
 	return tui.ContainerStyle.Render(
 		lipgloss.JoinVertical(
@@ -547,4 +697,105 @@ func createProject(name string, reposPath string) tea.Cmd {
 			message: fmt.Sprintf("Created project: %s", name),
 		}
 	}
+}
+
+// loadBranches loads git branches for a project
+func loadBranches(projectPath string) tea.Cmd {
+	return func() tea.Msg {
+		branches, err := git.GetBranches(projectPath)
+		if err != nil {
+			return errMsg(err)
+		}
+		return branchesLoadedMsg(branches)
+	}
+}
+
+// switchBranch switches to a different branch, optionally stashing first
+func switchBranch(projectPath, branch string, stashFirst bool) tea.Cmd {
+	return func() tea.Msg {
+		var messages []string
+
+		if stashFirst {
+			stashOut, err := git.Stash(projectPath)
+			if err != nil {
+				return branchSwitchedMsg{
+					success: false,
+					message: fmt.Sprintf("Failed to stash changes: %v\n%s", err, stashOut),
+					branch:  branch,
+				}
+			}
+			messages = append(messages, "Stashed changes: "+stashOut)
+		}
+
+		checkoutOut, err := git.Checkout(projectPath, branch)
+		if err != nil {
+			return branchSwitchedMsg{
+				success: false,
+				message: fmt.Sprintf("Failed to switch branch: %v\n%s", err, checkoutOut),
+				branch:  branch,
+			}
+		}
+		messages = append(messages, fmt.Sprintf("Switched to branch '%s'", branch))
+		if checkoutOut != "" {
+			messages = append(messages, checkoutOut)
+		}
+
+		return branchSwitchedMsg{
+			success: true,
+			message: fmt.Sprintf("%s\n\nUse 'git stash pop' to restore stashed changes.", 
+				joinMessages(messages)),
+			branch: branch,
+		}
+	}
+}
+
+func joinMessages(msgs []string) string {
+	result := ""
+	for i, msg := range msgs {
+		if i > 0 {
+			result += "\n"
+		}
+		result += msg
+	}
+	return result
+}
+
+// branchItem is a list item for the branch picker
+type branchItem string
+
+func (b branchItem) FilterValue() string { return string(b) }
+func (b branchItem) Title() string       { return string(b) }
+func (b branchItem) Description() string { return "" }
+
+// branchDelegate is a simple delegate for branch items
+type branchDelegate struct{}
+
+func (d branchDelegate) Height() int                             { return 1 }
+func (d branchDelegate) Spacing() int                            { return 0 }
+func (d branchDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d branchDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	branch, ok := item.(branchItem)
+	if !ok {
+		return
+	}
+
+	str := string(branch)
+	
+	// Check if this is the current branch (marked with *)
+	isCurrent := false
+	if len(str) > 0 && str[0] == '*' {
+		isCurrent = true
+		str = str[1:]
+		str = "  " + str + " (current)"
+	} else {
+		str = "  " + str
+	}
+
+	if index == m.Index() {
+		str = tui.SelectedStyle.Render("> " + str[2:])
+	} else if isCurrent {
+		str = tui.SubtitleStyle.Render(str)
+	}
+
+	fmt.Fprint(w, str)
 }

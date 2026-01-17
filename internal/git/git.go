@@ -154,3 +154,35 @@ func Init(projectPath string) (string, error) {
 	err := cmd.Run()
 	return strings.TrimSpace(out.String()), err
 }
+
+// Stash stashes the current changes
+func Stash(projectPath string) (string, error) {
+	cmd := exec.Command("git", "-C", projectPath, "stash", "push", "-m", "Auto-stash by proj before branch switch")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+	return strings.TrimSpace(out.String()), err
+}
+
+// StashPop pops the most recent stash
+func StashPop(projectPath string) (string, error) {
+	cmd := exec.Command("git", "-C", projectPath, "stash", "pop")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+	return strings.TrimSpace(out.String()), err
+}
+
+// IsDirty checks if there are uncommitted changes (exported version)
+func IsDirty(projectPath string) (bool, error) {
+	return isDirty(projectPath)
+}
+
+// GetCurrentBranch returns the current branch name (exported version)
+func GetCurrentBranch(projectPath string) (string, error) {
+	return getCurrentBranch(projectPath)
+}
