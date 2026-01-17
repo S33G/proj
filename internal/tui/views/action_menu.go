@@ -169,24 +169,32 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 	if gitEnabled && proj.IsGitRepo {
 		actions = append(actions,
 			Action{
-				ID:   "git-log",
-				Label:       "View Git Log",
-				Desc: "Show recent commits",
-				Icon:        "🔍",
+				ID:    "git-log",
+				Label: "View Git Log",
+				Desc:  "Show recent commits",
+				Icon:  "🔍",
 			},
 			Action{
-				ID:   "git-pull",
-				Label:       "Git Pull",
-				Desc: "Pull latest changes",
-				Icon:        "🔄",
+				ID:    "git-pull",
+				Label: "Git Pull",
+				Desc:  "Pull latest changes",
+				Icon:  "🔄",
 			},
 			Action{
-				ID:   "git-branch",
-				Label:       "Switch Branch",
-				Desc: "Checkout a different branch",
-				Icon:        "🌿",
+				ID:    "git-branch",
+				Label: "Switch Branch",
+				Desc:  "Checkout a different branch",
+				Icon:  "🌿",
 			},
 		)
+	} else if gitEnabled && !proj.IsGitRepo {
+		// Show git init for non-git directories
+		actions = append(actions, Action{
+			ID:    "git-init",
+			Label: "Git Init",
+			Desc:  "Initialize a new git repository",
+			Icon:  "🌱",
+		})
 	}
 
 	// Test action

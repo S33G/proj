@@ -44,6 +44,8 @@ func (e *Executor) Execute(actionID string, proj *project.Project) Result {
 		return e.gitPull(proj)
 	case "git-branch":
 		return e.gitBranch(proj)
+	case "git-init":
+		return e.gitInit(proj)
 	case "run-tests":
 		return e.runTests(proj)
 	case "install-deps":
@@ -144,6 +146,23 @@ func (e *Executor) gitBranch(proj *project.Project) Result {
 	// TODO: Add interactive branch selection in TUI
 	message := "Available branches:\n\n" + strings.Join(branches, "\n")
 	return Result{Success: true, Message: message}
+}
+
+// gitInit initializes a new git repository
+func (e *Executor) gitInit(proj *project.Project) Result {
+	if proj.IsGitRepo {
+		return Result{Success: false, Message: "Already a git repository"}
+	}
+
+	output, err := git.Init(proj.Path)
+	if err != nil {
+		return Result{Success: false, Message: fmt.Sprintf("Git init failed: %v\n%s", err, output)}
+	}
+
+	// Update the project's git status
+	proj.IsGitRepo = true
+
+	return Result{Success: true, Message: output}
 }
 
 // runTests runs project tests

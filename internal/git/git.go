@@ -143,3 +143,14 @@ func IsInstalled() bool {
 	cmd := exec.Command("git", "--version")
 	return cmd.Run() == nil
 }
+
+// Init initializes a new git repository in the given directory
+func Init(projectPath string) (string, error) {
+	cmd := exec.Command("git", "-C", projectPath, "init")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+	return strings.TrimSpace(out.String()), err
+}
