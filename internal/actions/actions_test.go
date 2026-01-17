@@ -82,7 +82,7 @@ func TestClean(t *testing.T) {
 
 	// Create temp directory with some artifacts
 	tmpDir := t.TempDir()
-	
+
 	// Create some build artifacts
 	os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0755)
 	os.Mkdir(filepath.Join(tmpDir, "dist"), 0755)
@@ -190,10 +190,10 @@ func TestGitLog(t *testing.T) {
 	if err := cmd.Run(); err != nil {
 		t.Skip("Failed to init git repo")
 	}
-	
+
 	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
 	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test").Run()
-	
+
 	// Create a commit
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
 	exec.Command("git", "-C", tmpDir, "add", ".").Run()

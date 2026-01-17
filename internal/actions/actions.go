@@ -67,7 +67,7 @@ func (e *Executor) ExecuteCommand(command string, proj *project.Project) Result 
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = proj.Path
-	
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -131,7 +131,7 @@ func parseCommand(cmd string) []string {
 // openEditor opens the project in the configured editor
 func (e *Executor) openEditor(proj *project.Project) Result {
 	editorCmd := e.config.Editor.Default
-	
+
 	// Get editor command and args from aliases
 	cmdArgs, ok := e.config.Editor.Aliases[editorCmd]
 	if !ok || len(cmdArgs) == 0 {
@@ -149,7 +149,7 @@ func (e *Executor) openEditor(proj *project.Project) Result {
 
 	// Prepare full command with project path
 	fullArgs := append(cmdArgs[1:], proj.Path)
-	
+
 	// Execute in background
 	cmd := exec.Command(cmdArgs[0], fullArgs...)
 	if err := cmd.Start(); err != nil {
@@ -334,7 +334,7 @@ func (e *Executor) installDeps(proj *project.Project) Result {
 // clean removes build artifacts
 func (e *Executor) clean(proj *project.Project) Result {
 	artifacts := e.detectBuildArtifacts(proj)
-	
+
 	removed := []string{}
 	for _, artifact := range artifacts {
 		artifactPath := filepath.Join(proj.Path, artifact)
@@ -358,7 +358,7 @@ func (e *Executor) clean(proj *project.Project) Result {
 // detectNodeTestCommand detects the appropriate test command for Node projects
 func (e *Executor) detectNodeTestCommand(proj *project.Project) *exec.Cmd {
 	packageJSON := filepath.Join(proj.Path, "package.json")
-	
+
 	// Check for package managers
 	if _, err := os.Stat(filepath.Join(proj.Path, "bun.lockb")); err == nil {
 		return exec.Command("bun", "test")
@@ -417,7 +417,7 @@ func (e *Executor) detectPythonInstallCommand(proj *project.Project) *exec.Cmd {
 // detectBuildArtifacts returns common build artifacts for the project language
 func (e *Executor) detectBuildArtifacts(proj *project.Project) []string {
 	common := []string{".DS_Store", "Thumbs.db"}
-	
+
 	switch proj.Language {
 	case "Go":
 		return append(common, "bin", "dist", "vendor")

@@ -5,12 +5,12 @@ import (
 	"io"
 	"strings"
 
-	"github.com/s33g/proj/internal/language"
-	"github.com/s33g/proj/internal/project"
-	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/s33g/proj/internal/language"
+	"github.com/s33g/proj/internal/project"
+	"github.com/s33g/proj/internal/tui"
 )
 
 // Item styles for the list
@@ -38,13 +38,13 @@ func (i ProjectListItem) Title() string {
 
 func (i ProjectListItem) Description() string {
 	parts := []string{}
-	
+
 	// Add language icon and name
 	if i.Project.Language != "" && i.Project.Language != "Unknown" {
 		icon := language.GetIcon(i.Project.Language)
 		parts = append(parts, fmt.Sprintf("%s %s", icon, i.Project.Language))
 	}
-	
+
 	// Add git branch
 	if i.Project.GitBranch != "" {
 		branch := fmt.Sprintf(" %s", i.Project.GitBranch)
@@ -53,7 +53,7 @@ func (i ProjectListItem) Description() string {
 		}
 		parts = append(parts, branch)
 	}
-	
+
 	return strings.Join(parts, "  ")
 }
 

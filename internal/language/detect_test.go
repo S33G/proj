@@ -73,7 +73,7 @@ func TestDetect(t *testing.T) {
 			for _, file := range tt.files {
 				filePath := filepath.Join(tmpDir, file)
 				dir := filepath.Dir(filePath)
-				
+
 				// Create directory if needed
 				if dir != tmpDir {
 					os.MkdirAll(dir, 0755)
@@ -175,7 +175,7 @@ func TestPriorityOrder(t *testing.T) {
 	// Create a directory with both package.json and tsconfig.json
 	// TypeScript should be detected before JavaScript due to priority
 	tmpDir := t.TempDir()
-	
+
 	os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte("{}"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte("{}"), 0644)
 

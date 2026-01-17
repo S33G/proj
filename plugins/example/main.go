@@ -71,7 +71,7 @@ func main() {
 		}
 
 		resp := plugin.handleRequest(&req)
-		
+
 		respData, err := json.Marshal(resp)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to marshal response: %v\n", err)

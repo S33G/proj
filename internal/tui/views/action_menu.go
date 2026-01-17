@@ -15,9 +15,9 @@ import (
 
 // Action styles
 var (
-	actionItemStyle    = lipgloss.NewStyle().PaddingLeft(2)
+	actionItemStyle     = lipgloss.NewStyle().PaddingLeft(2)
 	actionSelectedStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(tui.Primary).Bold(true)
-	actionDescStyle    = lipgloss.NewStyle().Foreground(tui.Muted).PaddingLeft(4)
+	actionDescStyle     = lipgloss.NewStyle().Foreground(tui.Muted).PaddingLeft(4)
 )
 
 // Action represents an action that can be performed on a project

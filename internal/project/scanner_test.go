@@ -19,7 +19,7 @@ func TestScanner_Scan(t *testing.T) {
 	for _, name := range projects {
 		projectPath := filepath.Join(tmpDir, name)
 		os.Mkdir(projectPath, 0755)
-		
+
 		// Add a go.mod to make it detectable
 		os.WriteFile(filepath.Join(projectPath, "go.mod"), []byte("module test"), 0644)
 	}

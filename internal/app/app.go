@@ -64,7 +64,7 @@ func New(cfg *config.Config) Model {
 	// Setup plugin registry
 	configDir, _ := config.ConfigDir()
 	pluginsDir := filepath.Join(configDir, "plugins")
-	
+
 	// Also check for plugins in the project directory (for development)
 	if cwd, err := os.Getwd(); err == nil {
 		devPluginsDir := filepath.Join(cwd, "plugins")
@@ -72,12 +72,12 @@ func New(cfg *config.Config) Model {
 			pluginsDir = devPluginsDir
 		}
 	}
-	
+
 	registry := plugin.NewRegistry(pluginsDir, configDir, cfg.Plugins.Enabled, cfg.Plugins.Config)
-	
+
 	// Load plugins (ignore errors for now)
 	_ = registry.LoadAll()
-	
+
 	return Model{
 		config:         cfg,
 		pluginRegistry: registry,
@@ -205,7 +205,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.selectedProject = m.projectList.SelectedProject(); m.selectedProject != nil {
 				// Get built-in actions
 				actions := views.DefaultActions(m.selectedProject, m.config.Actions.EnableGitOperations, m.config.Actions.EnableTestRunner)
-				
+
 				// Get plugin actions
 				if m.pluginRegistry != nil {
 					pluginActions := m.getPluginActions(m.selectedProject)
@@ -225,7 +225,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						actions = append(actions, pluginActions...)
 					}
 				}
-				
+
 				m.actionMenu = views.NewActionMenuModel(m.selectedProject, actions)
 				m.view = ViewActions
 				m.updateSizes()
@@ -367,7 +367,7 @@ func (m *Model) updateSizes() {
 	if m.width == 0 || m.height == 0 {
 		return
 	}
-	
+
 	contentHeight := m.height - 10 // Reserve space for header and help
 	if contentHeight < 5 {
 		contentHeight = 5 // Minimum height
@@ -642,11 +642,11 @@ func executeAction(actionID string, actionLabel string, actionCommand string, pr
 				}
 			}
 		}
-		
+
 		// Fall back to built-in actions
 		executor := actions.NewExecutor(cfg)
 		result := executor.Execute(actionID, proj)
-		
+
 		return actionCompleteMsg{
 			success:     result.Success,
 			message:     result.Message,
@@ -662,10 +662,10 @@ func (m Model) getPluginActions(proj *project.Project) []views.Action {
 	if m.pluginRegistry == nil {
 		return nil
 	}
-	
+
 	pluginProj := projectToPlugin(proj)
 	pluginActions := m.pluginRegistry.GetActions(pluginProj)
-	
+
 	// Convert plugin actions to view actions
 	viewActions := make([]views.Action, len(pluginActions))
 	for i, pa := range pluginActions {
@@ -676,7 +676,7 @@ func (m Model) getPluginActions(proj *project.Project) []views.Action {
 			Icon:  pa.Icon,
 		}
 	}
-	
+
 	return viewActions
 }
 
@@ -755,7 +755,7 @@ func switchBranch(projectPath, branch string, stashFirst bool) tea.Cmd {
 
 		return branchSwitchedMsg{
 			success: true,
-			message: fmt.Sprintf("%s\n\nUse 'git stash pop' to restore stashed changes.", 
+			message: fmt.Sprintf("%s\n\nUse 'git stash pop' to restore stashed changes.",
 				joinMessages(messages)),
 			branch: branch,
 		}
@@ -793,7 +793,7 @@ func (d branchDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 	}
 
 	str := string(branch)
-	
+
 	// Check if this is the current branch (marked with *)
 	isCurrent := false
 	if len(str) > 0 && str[0] == '*' {

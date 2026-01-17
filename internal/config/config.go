@@ -10,14 +10,14 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	ReposPath       string          `json:"reposPath" mapstructure:"reposPath"`
-	Editor          EditorConfig    `json:"editor" mapstructure:"editor"`
-	Shell           string          `json:"shell" mapstructure:"shell"`
-	Theme           ThemeConfig     `json:"theme" mapstructure:"theme"`
-	Display         DisplayConfig   `json:"display" mapstructure:"display"`
-	ExcludePatterns []string        `json:"excludePatterns" mapstructure:"excludePatterns"`
-	Actions         ActionsConfig   `json:"actions" mapstructure:"actions"`
-	Plugins         PluginsConfig   `json:"plugins" mapstructure:"plugins"`
+	ReposPath       string        `json:"reposPath" mapstructure:"reposPath"`
+	Editor          EditorConfig  `json:"editor" mapstructure:"editor"`
+	Shell           string        `json:"shell" mapstructure:"shell"`
+	Theme           ThemeConfig   `json:"theme" mapstructure:"theme"`
+	Display         DisplayConfig `json:"display" mapstructure:"display"`
+	ExcludePatterns []string      `json:"excludePatterns" mapstructure:"excludePatterns"`
+	Actions         ActionsConfig `json:"actions" mapstructure:"actions"`
+	Plugins         PluginsConfig `json:"plugins" mapstructure:"plugins"`
 }
 
 // EditorConfig holds editor settings
@@ -56,27 +56,27 @@ type PluginsConfig struct {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
-	
+
 	return &Config{
 		ReposPath: filepath.Join(home, "code"),
 		Editor: EditorConfig{
 			Default: "code",
 			Aliases: map[string][]string{
-				"code":      {"code", "--goto"},
-				"nvim":      {"nvim"},
-				"vim":       {"vim"},
-				"emacs":     {"emacsclient", "-n"},
-				"idea":      {"idea"},
-				"goland":    {"goland"},
-				"pycharm":   {"pycharm"},
-				"webstorm":  {"webstorm"},
-				"clion":     {"clion"},
-				"rubymine":  {"rubymine"},
-				"phpstorm":  {"phpstorm"},
-				"zed":       {"zed"},
-				"subl":      {"subl"},
-				"hx":        {"hx"},
-				"cursor":    {"cursor"},
+				"code":     {"code", "--goto"},
+				"nvim":     {"nvim"},
+				"vim":      {"vim"},
+				"emacs":    {"emacsclient", "-n"},
+				"idea":     {"idea"},
+				"goland":   {"goland"},
+				"pycharm":  {"pycharm"},
+				"webstorm": {"webstorm"},
+				"clion":    {"clion"},
+				"rubymine": {"rubymine"},
+				"phpstorm": {"phpstorm"},
+				"zed":      {"zed"},
+				"subl":     {"subl"},
+				"hx":       {"hx"},
+				"cursor":   {"cursor"},
 			},
 		},
 		Shell: "/bin/bash",
@@ -185,7 +185,7 @@ func Init() error {
 // setDefaults sets default values in viper
 func setDefaults() {
 	home, _ := os.UserHomeDir()
-	
+
 	viper.SetDefault("reposPath", filepath.Join(home, "code"))
 	viper.SetDefault("editor.default", "code")
 	viper.SetDefault("shell", "/bin/bash")

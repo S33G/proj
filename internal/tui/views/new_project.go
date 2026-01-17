@@ -3,10 +3,10 @@ package views
 import (
 	"fmt"
 
-	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/s33g/proj/internal/tui"
 )
 
 // NewProjectModel is the model for creating a new project
@@ -42,20 +42,20 @@ func (m NewProjectModel) Update(msg tea.Msg) (NewProjectModel, tea.Cmd) {
 
 func (m NewProjectModel) View() string {
 	title := tui.TitleStyle.Render("📝 Create New Project")
-	
+
 	prompt := lipgloss.NewStyle().
 		Foreground(tui.Muted).
 		Render("Enter project name:")
-	
+
 	input := m.textInput.View()
-	
+
 	help := tui.HelpStyle.Render("enter: create  •  esc: cancel")
-	
+
 	errMsg := ""
 	if m.err != nil {
 		errMsg = "\n" + tui.ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
 	}
-	
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		title,
