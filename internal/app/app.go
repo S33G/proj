@@ -5,15 +5,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/s33g/proj/internal/actions"
 	"github.com/s33g/proj/internal/config"
 	"github.com/s33g/proj/internal/project"
 	"github.com/s33g/proj/internal/tui"
 	"github.com/s33g/proj/internal/tui/views"
 	"github.com/s33g/proj/pkg/plugin"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // View represents the current view state
@@ -25,6 +26,7 @@ const (
 	ViewActions
 	ViewNewProject
 	ViewExecuting
+	ViewResult
 )
 
 // Model is the main application model
@@ -37,6 +39,9 @@ type Model struct {
 	projectList     views.ProjectListModel
 	actionMenu      views.ActionMenuModel
 	newProject      views.NewProjectModel
+	resultViewport  viewport.Model
+	resultTitle     string
+	resultSuccess   bool
 	keys            tui.KeyMap
 	width           int
 	height          int
@@ -77,10 +82,11 @@ func New(cfg *config.Config) Model {
 type errMsg error
 type projectsLoadedMsg []*project.Project
 type actionCompleteMsg struct {
-	success bool
-	message string
-	cdPath  string
-	execCmd []string
+	success     bool
+	message     string
+	actionLabel string
+	cdPath      string
+	execCmd     []string
 }
 
 // Init initializes the model
@@ -125,12 +131,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.execCmd = msg.execCmd
 			return m, tea.Quit
 		}
-		m.message = msg.message
-		if msg.success {
-			m.view = ViewActions
-		} else {
-			m.view = ViewActions
-		}
+		// Show result in a dedicated view
+		m.resultTitle = msg.actionLabel
+		m.resultSuccess = msg.success
+		m.resultViewport = viewport.New(m.width-4, m.height-10)
+		m.resultViewport.SetContent(msg.message)
+		m.view = ViewResult
 		return m, nil
 
 	case errMsg:
@@ -209,7 +215,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Executing: %s...", action.Label)
-				return m, executeAction(action.ID, m.selectedProject, m.config, m.pluginRegistry)
+				return m, executeAction(action.ID, action.Label, m.selectedProject, m.config, m.pluginRegistry)
 			}
 			return m, nil
 		default:
@@ -232,6 +238,18 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, createProject(projectName, m.config.ReposPath)
 			}
 			return m, nil
+		}
+
+	case ViewResult:
+		switch {
+		case key.Matches(msg, m.keys.Back), key.Matches(msg, m.keys.Quit):
+			m.view = ViewActions
+			return m, nil
+		default:
+			// Pass keys to viewport for scrolling
+			var cmd tea.Cmd
+			m.resultViewport, cmd = m.resultViewport.Update(msg)
+			return m, cmd
 		}
 	}
 
@@ -307,6 +325,9 @@ func (m Model) View() string {
 				m.message,
 			),
 		)
+
+	case ViewResult:
+		return m.renderResultView()
 	}
 
 	return ""
@@ -358,10 +379,49 @@ func (m Model) renderActionsView() string {
 	content := m.actionMenu.View()
 	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: execute  •  esc: back  •  q: quit")
 
-	errorMsg := ""
-	if m.message != "" {
-		errorMsg = "\n" + tui.SuccessStyle.Render(m.message)
+	return tui.ContainerStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			header,
+			"",
+			content,
+			"",
+			help,
+		),
+	)
+}
+
+// renderResultView renders the action result view
+func (m Model) renderResultView() string {
+	// Status icon and title
+	icon := "✓"
+	titleStyle := tui.SuccessStyle
+	if !m.resultSuccess {
+		icon = "✗"
+		titleStyle = tui.ErrorStyle
 	}
+
+	title := titleStyle.Render(fmt.Sprintf("%s %s", icon, m.resultTitle))
+
+	// Scroll indicator
+	scrollInfo := ""
+	if m.resultViewport.TotalLineCount() > m.resultViewport.Height {
+		scrollInfo = tui.SubtitleStyle.Render(
+			fmt.Sprintf(" (%d%%)", int(m.resultViewport.ScrollPercent()*100)),
+		)
+	}
+
+	header := lipgloss.JoinHorizontal(lipgloss.Left, title, scrollInfo)
+
+	// Content in a bordered box
+	content := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("238")).
+		Padding(0, 1).
+		Width(m.width - 6).
+		Render(m.resultViewport.View())
+
+	help := tui.HelpStyle.Render("↑/↓: scroll  •  esc/q: close")
 
 	return tui.ContainerStyle.Render(
 		lipgloss.JoinVertical(
@@ -369,7 +429,6 @@ func (m Model) renderActionsView() string {
 			header,
 			"",
 			content,
-			errorMsg,
 			"",
 			help,
 		),
@@ -404,7 +463,7 @@ func loadProjects(cfg *config.Config) tea.Cmd {
 }
 
 // executeAction executes an action
-func executeAction(actionID string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
+func executeAction(actionID string, actionLabel string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
 	return func() tea.Msg {
 		// Try plugin actions first
 		if registry != nil {
@@ -412,10 +471,11 @@ func executeAction(actionID string, proj *project.Project, cfg *config.Config, r
 			result, err := registry.ExecuteAction(actionID, pluginProj)
 			if err == nil && result != nil {
 				return actionCompleteMsg{
-					success: result.Success,
-					message: result.Message,
-					cdPath:  result.CdPath,
-					execCmd: result.ExecCmd,
+					success:     result.Success,
+					message:     result.Message,
+					actionLabel: actionLabel,
+					cdPath:      result.CdPath,
+					execCmd:     result.ExecCmd,
 				}
 			}
 		}
@@ -425,10 +485,11 @@ func executeAction(actionID string, proj *project.Project, cfg *config.Config, r
 		result := executor.Execute(actionID, proj)
 		
 		return actionCompleteMsg{
-			success: result.Success,
-			message: result.Message,
-			cdPath:  result.CdPath,
-			execCmd: result.ExecCmd,
+			success:     result.Success,
+			message:     result.Message,
+			actionLabel: actionLabel,
+			cdPath:      result.CdPath,
+			execCmd:     result.ExecCmd,
 		}
 	}
 }
