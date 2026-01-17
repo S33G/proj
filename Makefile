@@ -4,7 +4,7 @@
 BINARY_NAME=proj
 VERSION?=dev
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
-GO=go
+GO?=$(shell which go || echo /home/cjennings/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.12.linux-amd64/bin/go)
 GOFLAGS=-trimpath
 
 # Build for current platform
@@ -37,9 +37,9 @@ clean:
 install:
 	$(GO) install $(GOFLAGS) $(LDFLAGS) ./cmd/proj
 
-# Run in development mode
+# Run in development mode (use: make dev ARGS="--list" or make dev ARGS="--set-path ~/code")
 dev:
-	$(GO) run ./cmd/proj
+	$(GO) run ./cmd/proj $(ARGS)
 
 # Lint code
 lint:
