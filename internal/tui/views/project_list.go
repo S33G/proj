@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cjennings/proj/internal/language"
-	"github.com/cjennings/proj/internal/project"
-	"github.com/cjennings/proj/internal/tui"
+	"github.com/s33g/proj/internal/language"
+	"github.com/s33g/proj/internal/project"
+	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

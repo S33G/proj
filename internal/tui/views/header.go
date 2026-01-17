@@ -3,7 +3,7 @@ package views
 import (
 	"fmt"
 
-	"github.com/cjennings/proj/internal/tui"
+	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/lipgloss"
 )
 

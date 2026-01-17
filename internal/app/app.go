@@ -5,10 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cjennings/proj/internal/config"
-	"github.com/cjennings/proj/internal/project"
-	"github.com/cjennings/proj/internal/tui"
-	"github.com/cjennings/proj/internal/tui/views"
+	"github.com/s33g/proj/internal/actions"
+	"github.com/s33g/proj/internal/config"
+	"github.com/s33g/proj/internal/project"
+	"github.com/s33g/proj/internal/tui"
+	"github.com/s33g/proj/internal/tui/views"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -161,7 +162,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Executing: %s...", action.Label)
-				return m, executeAction(action.ID, m.selectedProject)
+				return m, executeAction(action.ID, m.selectedProject, m.config)
 			}
 			return m, nil
 		}
@@ -341,20 +342,16 @@ func loadProjects(cfg *config.Config) tea.Cmd {
 }
 
 // executeAction executes an action
-func executeAction(actionID string, proj *project.Project) tea.Cmd {
+func executeAction(actionID string, proj *project.Project, cfg *config.Config) tea.Cmd {
 	return func() tea.Msg {
-		// This is a placeholder - we'll implement actual actions in the next phase
-		switch actionID {
-		case "cd":
-			return actionCompleteMsg{
-				success: true,
-				cdPath:  proj.Path,
-			}
-		default:
-			return actionCompleteMsg{
-				success: true,
-				message: fmt.Sprintf("Action '%s' executed successfully", actionID),
-			}
+		executor := actions.NewExecutor(cfg)
+		result := executor.Execute(actionID, proj)
+		
+		return actionCompleteMsg{
+			success: result.Success,
+			message: result.Message,
+			cdPath:  result.CdPath,
+			execCmd: result.ExecCmd,
 		}
 	}
 }

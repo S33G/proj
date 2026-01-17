@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cjennings/proj/internal/config"
+	"github.com/s33g/proj/internal/config"
 )
 
 func TestScanner_Scan(t *testing.T) {

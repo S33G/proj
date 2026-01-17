@@ -1,4 +1,4 @@
-module github.com/cjennings/proj
+module github.com/s33g/proj
 
 go 1.24.0
 

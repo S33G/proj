@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cjennings/proj/internal/config"
-	"github.com/cjennings/proj/internal/git"
-	"github.com/cjennings/proj/internal/language"
+	"github.com/s33g/proj/internal/config"
+	"github.com/s33g/proj/internal/git"
+	"github.com/s33g/proj/internal/language"
 )
 
 // Project represents a code project
