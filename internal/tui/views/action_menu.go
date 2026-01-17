@@ -2,20 +2,29 @@ package views
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/s33g/proj/internal/project"
 	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// Action styles
+var (
+	actionItemStyle    = lipgloss.NewStyle().PaddingLeft(2)
+	actionSelectedStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(tui.Primary).Bold(true)
+	actionDescStyle    = lipgloss.NewStyle().Foreground(tui.Muted).PaddingLeft(4)
 )
 
 // Action represents an action that can be performed on a project
 type Action struct {
-	ID   string
-	Label       string
-	Desc string
-	Icon        string
+	ID    string
+	Label string
+	Desc  string
+	Icon  string
 }
 
 // FilterValue implements list.Item
@@ -36,6 +45,45 @@ func (a Action) Description() string {
 	return a.Desc
 }
 
+// actionDelegate is a custom delegate for rendering action items
+type actionDelegate struct{}
+
+func (d actionDelegate) Height() int                             { return 2 }
+func (d actionDelegate) Spacing() int                            { return 0 }
+func (d actionDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	a, ok := listItem.(Action)
+	if !ok {
+		return
+	}
+
+	isSelected := index == m.Index()
+
+	// Build the line
+	var line strings.Builder
+
+	// Icon and label
+	label := a.Label
+	if a.Icon != "" {
+		label = fmt.Sprintf("%s  %s", a.Icon, label)
+	}
+
+	if isSelected {
+		line.WriteString(actionSelectedStyle.Render("▸ " + label))
+	} else {
+		line.WriteString(actionItemStyle.Render("  " + label))
+	}
+
+	// Description on next line
+	line.WriteString("\n")
+	if a.Desc != "" {
+		line.WriteString(actionDescStyle.Render(a.Desc))
+	}
+
+	fmt.Fprint(w, line.String())
+}
+
 // ActionMenuModel is the model for the action menu
 type ActionMenuModel struct {
 	list    list.Model
@@ -51,19 +99,21 @@ func NewActionMenuModel(proj *project.Project, actions []Action) ActionMenuModel
 		items[i] = a
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = tui.SelectedStyle
-	delegate.Styles.SelectedDesc = tui.SelectedStyle.Foreground(tui.Muted)
+	delegate := actionDelegate{}
 
-	l := list.New(items, delegate, 0, 0)
+	l := list.New(items, delegate, 80, 20)
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)
+	l.Styles.Title = lipgloss.NewStyle()
 
 	return ActionMenuModel{
 		list:    l,
 		project: proj,
+		width:   80,
+		height:  20,
 	}
 }
 

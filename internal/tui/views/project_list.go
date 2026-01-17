@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/s33g/proj/internal/language"
@@ -10,6 +11,16 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+)
+
+// Item styles for the list
+var (
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(2)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(tui.Primary).Bold(true)
+	dimStyle          = lipgloss.NewStyle().Foreground(tui.Muted)
+	langStyle         = lipgloss.NewStyle().Foreground(tui.Accent)
+	branchStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	dirtyStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6347")).Bold(true)
 )
 
 // ProjectListItem implements list.Item for projects
@@ -38,12 +49,69 @@ func (i ProjectListItem) Description() string {
 	if i.Project.GitBranch != "" {
 		branch := fmt.Sprintf(" %s", i.Project.GitBranch)
 		if i.Project.GitDirty {
-			branch += " *"
+			branch += "*"
 		}
 		parts = append(parts, branch)
 	}
 	
-	return strings.Join(parts, "  •  ")
+	return strings.Join(parts, "  ")
+}
+
+// itemDelegate is a custom delegate for rendering project items
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(ProjectListItem)
+	if !ok {
+		return
+	}
+
+	p := i.Project
+	isSelected := index == m.Index()
+
+	// Build the line
+	var line strings.Builder
+
+	// Project name
+	name := p.Name
+	if isSelected {
+		line.WriteString(selectedItemStyle.Render("▸ " + name))
+	} else {
+		line.WriteString(itemStyle.Render("  " + name))
+	}
+
+	// Add padding for alignment
+	padding := 25 - len(p.Name)
+	if padding < 2 {
+		padding = 2
+	}
+	line.WriteString(strings.Repeat(" ", padding))
+
+	// Language
+	if p.Language != "" && p.Language != "Unknown" {
+		icon := language.GetIcon(p.Language)
+		line.WriteString(langStyle.Render(fmt.Sprintf("%s %-12s", icon, p.Language)))
+	} else {
+		line.WriteString(strings.Repeat(" ", 14))
+	}
+
+	// Git branch
+	if p.GitBranch != "" {
+		branch := fmt.Sprintf(" %s", p.GitBranch)
+		if len(branch) > 30 {
+			branch = branch[:27] + "..."
+		}
+		line.WriteString(branchStyle.Render(branch))
+		if p.GitDirty {
+			line.WriteString(dirtyStyle.Render("*"))
+		}
+	}
+
+	fmt.Fprint(w, line.String())
 }
 
 // ProjectListModel is the model for the project list view
@@ -61,19 +129,25 @@ func NewProjectListModel(projects []*project.Project) ProjectListModel {
 		items[i] = ProjectListItem{Project: p}
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = tui.SelectedStyle
-	delegate.Styles.SelectedDesc = tui.SelectedStyle.Foreground(tui.Muted)
+	// Use our custom compact delegate
+	delegate := itemDelegate{}
 
-	l := list.New(items, delegate, 0, 0)
+	// Initialize with reasonable default size (will be updated on WindowSizeMsg)
+	l := list.New(items, delegate, 80, 24)
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.SetShowPagination(true)
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(tui.Muted)
+	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(tui.Muted)
 
 	return ProjectListModel{
 		list:     l,
 		projects: projects,
+		width:    80,
+		height:   24,
 	}
 }
 

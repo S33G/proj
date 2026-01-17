@@ -108,8 +108,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.projects = []*project.Project(msg)
 		if len(m.projects) > 0 {
 			m.projectList = views.NewProjectListModel(m.projects)
-			m.updateSizes()
 			m.view = ViewProjects
+			m.updateSizes() // Call after setting view so size is applied
 		} else {
 			m.message = "No projects found"
 			m.view = ViewProjects
@@ -185,6 +185,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.updateSizes()
 			}
 			return m, nil
+		default:
+			// Pass other keys (including arrows) to the list for navigation
+			var cmd tea.Cmd
+			m.projectList, cmd = m.projectList.Update(msg)
+			return m, cmd
 		}
 
 	case ViewActions:
@@ -207,6 +212,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, executeAction(action.ID, m.selectedProject, m.config, m.pluginRegistry)
 			}
 			return m, nil
+		default:
+			// Pass other keys (including arrows) to the menu for navigation
+			var cmd tea.Cmd
+			m.actionMenu, cmd = m.actionMenu.Update(msg)
+			return m, cmd
 		}
 
 	case ViewNewProject:
@@ -248,13 +258,23 @@ func (m Model) updateView(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateSizes updates sizes for all sub-views
 func (m *Model) updateSizes() {
+	// Don't update if we don't have window dimensions yet
+	if m.width == 0 || m.height == 0 {
+		return
+	}
+	
 	contentHeight := m.height - 10 // Reserve space for header and help
+	if contentHeight < 5 {
+		contentHeight = 5 // Minimum height
+	}
 
-	if m.view == ViewProjects && len(m.projects) > 0 {
+	if len(m.projects) > 0 {
 		m.projectList.SetSize(m.width-4, contentHeight)
-	} else if m.view == ViewActions {
+	}
+	if m.view == ViewActions {
 		m.actionMenu.SetSize(m.width-4, contentHeight)
-	} else if m.view == ViewNewProject {
+	}
+	if m.view == ViewNewProject {
 		m.newProject.SetSize(m.width-4, contentHeight)
 	}
 }
