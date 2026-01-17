@@ -5,11 +5,12 @@ import (
 	"io"
 	"strings"
 
-	"github.com/s33g/proj/internal/project"
-	"github.com/s33g/proj/internal/tui"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/s33g/proj/internal/project"
+	"github.com/s33g/proj/internal/scripts"
+	"github.com/s33g/proj/internal/tui"
 )
 
 // Action styles
@@ -21,10 +22,12 @@ var (
 
 // Action represents an action that can be performed on a project
 type Action struct {
-	ID    string
-	Label string
-	Desc  string
-	Icon  string
+	ID      string
+	Label   string
+	Desc    string
+	Icon    string
+	Command string // For script actions, the command to run
+	Source  string // Source of the script (package.json, Makefile, etc)
 }
 
 // FilterValue implements list.Item
@@ -152,16 +155,16 @@ func (m ActionMenuModel) SelectedAction() *Action {
 func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Action {
 	actions := []Action{
 		{
-			ID:   "open-editor",
-			Label:       "Open in Editor",
-			Desc: "Open project in configured editor",
-			Icon:        "🚀",
+			ID:    "open-editor",
+			Label: "Open in Editor",
+			Desc:  "Open project in configured editor",
+			Icon:  "🚀",
 		},
 		{
-			ID:   "cd",
-			Label:       "Change Directory",
-			Desc: "Navigate to project directory",
-			Icon:        "📂",
+			ID:    "cd",
+			Label: "Change Directory",
+			Desc:  "Navigate to project directory",
+			Icon:  "📂",
 		},
 	}
 
@@ -197,39 +200,83 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 		})
 	}
 
-	// Test action
-	if testsEnabled {
-		actions = append(actions, Action{
-			ID:   "run-tests",
-			Label:       "Run Tests",
-			Desc: "Execute test suite",
-			Icon:        "🧪",
-		})
+	// Detect and add project scripts
+	detectedScripts := scripts.Detect(proj.Path, proj.Language)
+	if len(detectedScripts) > 0 {
+		// Group scripts by source
+		sourceGroups := make(map[string][]scripts.Script)
+		for _, s := range detectedScripts {
+			sourceGroups[s.Source] = append(sourceGroups[s.Source], s)
+		}
+
+		// Add scripts with source icons
+		for _, s := range detectedScripts {
+			icon := getScriptIcon(s.Source)
+			desc := s.Desc
+			if desc == "" {
+				desc = s.Command
+			}
+			actions = append(actions, Action{
+				ID:      s.ID,
+				Label:   s.Name,
+				Desc:    desc,
+				Icon:    icon,
+				Command: s.Command,
+				Source:  s.Source,
+			})
+		}
 	}
 
 	// General actions
 	actions = append(actions,
 		Action{
-			ID:   "install-deps",
-			Label:       "Install Dependencies",
-			Desc: "Run package manager install",
-			Icon:        "📦",
+			ID:    "install-deps",
+			Label: "Install Dependencies",
+			Desc:  "Run package manager install",
+			Icon:  "📦",
 		},
 		Action{
-			ID:   "clean",
-			Label:       "Clean Build Artifacts",
-			Desc: "Remove build directories",
-			Icon:        "🗑️",
+			ID:    "clean",
+			Label: "Clean Build Artifacts",
+			Desc:  "Remove build directories",
+			Icon:  "🗑️",
 		},
 		Action{
-			ID:   "back",
-			Label:       "← Back",
-			Desc: "Return to project list",
-			Icon:        "",
+			ID:    "back",
+			Label: "← Back",
+			Desc:  "Return to project list",
+			Icon:  "",
 		},
 	)
 
 	return actions
+}
+
+// getScriptIcon returns an icon based on the script source
+func getScriptIcon(source string) string {
+	switch source {
+	case "package.json":
+		return "📜"
+	case "Makefile":
+		return "⚙️"
+	case "justfile":
+		return "📋"
+	case "go":
+		return "🔵"
+	case "cargo":
+		return "🦀"
+	case "poetry", "pip", "python", "pytest":
+		return "🐍"
+	case "django":
+		return "🎸"
+	case "bundler", "rake", "rails":
+		return "💎"
+	default:
+		if strings.HasSuffix(source, "/") {
+			return "📄" // Shell scripts in directories
+		}
+		return "▶️"
+	}
 }
 
 // ActionMenu renders a simple action menu

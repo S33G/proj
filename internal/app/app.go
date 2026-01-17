@@ -261,7 +261,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Executing: %s...", action.Label)
-				return m, executeAction(action.ID, action.Label, m.selectedProject, m.config, m.pluginRegistry)
+				return m, executeAction(action.ID, action.Label, action.Command, m.selectedProject, m.config, m.pluginRegistry)
 			}
 			return m, nil
 		default:
@@ -613,8 +613,21 @@ func loadProjects(cfg *config.Config) tea.Cmd {
 }
 
 // executeAction executes an action
-func executeAction(actionID string, actionLabel string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
+func executeAction(actionID string, actionLabel string, actionCommand string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
 	return func() tea.Msg {
+		// If action has a command, execute it directly
+		if actionCommand != "" {
+			executor := actions.NewExecutor(cfg)
+			result := executor.ExecuteCommand(actionCommand, proj)
+			return actionCompleteMsg{
+				success:     result.Success,
+				message:     result.Message,
+				actionLabel: actionLabel,
+				cdPath:      result.CdPath,
+				execCmd:     result.ExecCmd,
+			}
+		}
+
 		// Try plugin actions first
 		if registry != nil {
 			pluginProj := projectToPlugin(proj)

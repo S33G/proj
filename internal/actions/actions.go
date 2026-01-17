@@ -57,6 +57,77 @@ func (e *Executor) Execute(actionID string, proj *project.Project) Result {
 	}
 }
 
+// ExecuteCommand executes a shell command in the project directory
+func (e *Executor) ExecuteCommand(command string, proj *project.Project) Result {
+	// Parse command into args
+	args := parseCommand(command)
+	if len(args) == 0 {
+		return Result{Success: false, Message: "Empty command"}
+	}
+
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = proj.Path
+	
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+	output := out.String()
+
+	if err != nil {
+		return Result{
+			Success: false,
+			Message: fmt.Sprintf("Command failed: %v\n\n%s", err, output),
+		}
+	}
+
+	if output == "" {
+		output = "Command completed successfully"
+	}
+
+	return Result{
+		Success: true,
+		Message: output,
+	}
+}
+
+// parseCommand splits a command string into arguments, handling quotes
+func parseCommand(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := rune(0)
+
+	for _, r := range cmd {
+		switch {
+		case r == '"' || r == '\'':
+			if inQuote && r == quoteChar {
+				inQuote = false
+				quoteChar = 0
+			} else if !inQuote {
+				inQuote = true
+				quoteChar = r
+			} else {
+				current.WriteRune(r)
+			}
+		case r == ' ' && !inQuote:
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}
+
 // openEditor opens the project in the configured editor
 func (e *Executor) openEditor(proj *project.Project) Result {
 	editorCmd := e.config.Editor.Default
