@@ -37,11 +37,7 @@ clean:
 
 # Install to ~/.local/bin (or custom PREFIX)
 install: build
-	@echo "Installing $(BINARY_NAME) to $(INSTALL_DIR)..."
-	@mkdir -p $(INSTALL_DIR)
-	@cp $(BINARY_NAME) $(INSTALL_DIR)/$(BINARY_NAME)
-	@chmod +x $(INSTALL_DIR)/$(BINARY_NAME)
-	@echo "✓ Installed to $(INSTALL_DIR)/$(BINARY_NAME)"
+	@./scripts/install-helper.sh $(INSTALL_DIR) $(BINARY_NAME)
 	@echo ""
 	@echo "Make sure $(INSTALL_DIR) is in your PATH:"
 	@echo "  export PATH=\"$(INSTALL_DIR):\$$PATH\""
