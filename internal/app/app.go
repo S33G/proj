@@ -43,6 +43,7 @@ type Model struct {
 	selectedProject *project.Project
 	projectList     views.ProjectListModel
 	actionMenu      views.ActionMenuModel
+	submenuStack    []views.ActionMenuModel // Stack for nested submenus
 	newProject      views.NewProjectModel
 	resultViewport  viewport.Model
 	resultTitle     string
@@ -241,18 +242,54 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ViewActions:
 		switch {
 		case key.Matches(msg, m.keys.Back):
-			m.view = ViewProjects
-			m.selectedProject = nil
+			// Check if we're in a submenu
+			if len(m.submenuStack) > 0 {
+				// Pop back to parent menu
+				m.actionMenu = m.submenuStack[len(m.submenuStack)-1]
+				m.submenuStack = m.submenuStack[:len(m.submenuStack)-1]
+				m.updateSizes()
+			} else {
+				// Back to project list
+				m.view = ViewProjects
+				m.selectedProject = nil
+			}
 			return m, nil
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.Enter):
 			if action := m.actionMenu.SelectedAction(); action != nil {
 				if action.ID == "back" {
-					m.view = ViewProjects
-					m.selectedProject = nil
+					// Check if we're in a submenu
+					if len(m.submenuStack) > 0 {
+						// Pop back to parent menu
+						m.actionMenu = m.submenuStack[len(m.submenuStack)-1]
+						m.submenuStack = m.submenuStack[:len(m.submenuStack)-1]
+						m.updateSizes()
+					} else {
+						// Back to project list
+						m.view = ViewProjects
+						m.selectedProject = nil
+					}
 					return m, nil
 				}
+				
+				// Check if this is a submenu action
+				if action.IsSubmenu {
+					// Push current menu onto stack
+					m.submenuStack = append(m.submenuStack, m.actionMenu)
+					
+					// Create new menu with submenu items
+					submenuActions := append(action.Children, views.Action{
+						ID:    "back",
+						Label: "← Back",
+						Desc:  "Return to previous menu",
+						Icon:  "",
+					})
+					m.actionMenu = views.NewActionMenuModel(m.selectedProject, submenuActions)
+					m.updateSizes()
+					return m, nil
+				}
+				
 				// Special handling for git-branch - show interactive picker
 				if action.ID == "git-branch" {
 					m.view = ViewExecuting
@@ -470,7 +507,13 @@ func (m Model) renderActionsView() string {
 	)
 
 	content := m.actionMenu.View()
-	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: execute  •  esc: back  •  q: quit")
+	
+	// Update help text based on whether we're in a submenu
+	helpText := "↑/↓: navigate  •  enter: execute  •  esc: back  •  q: quit"
+	if len(m.submenuStack) > 0 {
+		helpText = "↑/↓: navigate  •  enter: select  •  esc: back to menu  •  q: quit"
+	}
+	help := tui.HelpStyle.Render(helpText)
 
 	return tui.ContainerStyle.Render(
 		lipgloss.JoinVertical(

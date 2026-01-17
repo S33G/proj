@@ -23,12 +23,14 @@ var (
 
 // Action represents an action that can be performed on a project
 type Action struct {
-	ID      string
-	Label   string
-	Desc    string
-	Icon    string
-	Command string // For script actions, the command to run
-	Source  string // Source of the script (package.json, Makefile, etc)
+	ID       string
+	Label    string
+	Desc     string
+	Icon     string
+	Command  string   // For script actions, the command to run
+	Source   string   // Source of the script (package.json, Makefile, etc)
+	IsSubmenu bool    // Whether this action opens a submenu
+	Children []Action // Submenu actions
 }
 
 // FilterValue implements list.Item
@@ -71,6 +73,11 @@ func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 	label := a.Label
 	if a.Icon != "" {
 		label = fmt.Sprintf("%s  %s", a.Icon, label)
+	}
+	
+	// Add arrow indicator for submenus
+	if a.IsSubmenu {
+		label = label + " →"
 	}
 
 	if isSelected {
@@ -210,36 +217,106 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 			sourceGroups[s.Source] = append(sourceGroups[s.Source], s)
 		}
 
-		// Add scripts with source icons
-		for _, s := range detectedScripts {
-			icon := getScriptIcon(s.Source)
-			desc := s.Desc
-			if desc == "" {
-				desc = s.Command
+		// Create submenus for each source with multiple scripts
+		for source, scriptsInSource := range sourceGroups {
+			if len(scriptsInSource) >= 3 {
+				// Create submenu for sources with 3+ scripts
+				icon := getScriptIcon(source)
+				sourceName := getSourceDisplayName(source)
+				
+				children := make([]Action, len(scriptsInSource))
+				for i, s := range scriptsInSource {
+					desc := s.Desc
+					if desc == "" {
+						desc = s.Command
+					}
+					children[i] = Action{
+						ID:      s.ID,
+						Label:   s.Name,
+						Desc:    desc,
+						Icon:    "▸",
+						Command: s.Command,
+						Source:  s.Source,
+					}
+				}
+
+				actions = append(actions, Action{
+					ID:        "submenu-" + source,
+					Label:     sourceName,
+					Desc:      fmt.Sprintf("%d available commands", len(scriptsInSource)),
+					Icon:      icon,
+					IsSubmenu: true,
+					Children:  children,
+				})
+			} else {
+				// Add individual scripts for sources with < 3 scripts
+				for _, s := range scriptsInSource {
+					icon := getScriptIcon(s.Source)
+					desc := s.Desc
+					if desc == "" {
+						desc = s.Command
+					}
+					actions = append(actions, Action{
+						ID:      s.ID,
+						Label:   s.Name,
+						Desc:    desc,
+						Icon:    icon,
+						Command: s.Command,
+						Source:  s.Source,
+					})
+				}
 			}
-			actions = append(actions, Action{
-				ID:      s.ID,
-				Label:   s.Name,
-				Desc:    desc,
-				Icon:    icon,
-				Command: s.Command,
-				Source:  s.Source,
-			})
 		}
 	}
 
-	// Docker actions
+	// Docker actions - group into submenu if present
 	if proj.HasDockerfile || proj.HasCompose {
 		dockerInfo, err := docker.Detect(proj.Path)
 		if err == nil {
 			dockerActions := docker.GetActionsForProject(dockerInfo)
-			for _, da := range dockerActions {
-				actions = append(actions, Action{
-					ID:    da.ID,
-					Label: da.Name,
-					Desc:  da.Description,
-					Icon:  "", // Icons are already in the Name
-				})
+			if len(dockerActions) > 0 {
+				// Group Docker actions by type
+				var dockerChildren []Action
+				var composeChildren []Action
+
+				for _, da := range dockerActions {
+					action := Action{
+						ID:    da.ID,
+						Label: da.Name,
+						Desc:  da.Description,
+						Icon:  "",
+					}
+					
+					if strings.HasPrefix(da.ID, "compose-") {
+						composeChildren = append(composeChildren, action)
+					} else {
+						dockerChildren = append(dockerChildren, action)
+					}
+				}
+
+				// Add Docker submenu if there are docker actions
+				if len(dockerChildren) > 0 {
+					actions = append(actions, Action{
+						ID:        "submenu-docker",
+						Label:     "Docker",
+						Desc:      fmt.Sprintf("%d container actions", len(dockerChildren)),
+						Icon:      "🐳",
+						IsSubmenu: true,
+						Children:  dockerChildren,
+					})
+				}
+
+				// Add Compose submenu if there are compose actions
+				if len(composeChildren) > 0 {
+					actions = append(actions, Action{
+						ID:        "submenu-compose",
+						Label:     "Docker Compose",
+						Desc:      fmt.Sprintf("%d service actions", len(composeChildren)),
+						Icon:      "🐙",
+						IsSubmenu: true,
+						Children:  composeChildren,
+					})
+				}
 			}
 		}
 	}
@@ -293,6 +370,40 @@ func getScriptIcon(source string) string {
 			return "📄" // Shell scripts in directories
 		}
 		return "▶️"
+	}
+}
+
+// getSourceDisplayName returns a friendly display name for a script source
+func getSourceDisplayName(source string) string {
+	switch source {
+	case "package.json":
+		return "npm Scripts"
+	case "Makefile":
+		return "Make"
+	case "justfile":
+		return "Just"
+	case "go":
+		return "Go Commands"
+	case "cargo":
+		return "Cargo"
+	case "poetry":
+		return "Poetry"
+	case "pip":
+		return "Pip"
+	case "python":
+		return "Python"
+	case "pytest":
+		return "Pytest"
+	case "django":
+		return "Django"
+	case "bundler":
+		return "Bundler"
+	case "rake":
+		return "Rake"
+	case "rails":
+		return "Rails"
+	default:
+		return source
 	}
 }
 
