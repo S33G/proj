@@ -2,8 +2,8 @@
 
 A fast, intuitive TUI project navigator for developers. Quickly browse, open, and manage your code projects from the terminal.
 
-[![CI](https://github.com/s33g/proj/actions/workflows/ci.yml/badge.svg)](https://github.com/s33g/proj/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/s33g/proj/branch/main/graph/badge.svg)](https://codecov.io/gh/s33g/proj)
+[![CI](https://github.com/S33G/proj/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/S33G/proj/actions/workflows/ci.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/S33G/proj/branch/main/graph/badge.svg)](https://codecov.io/gh/S33G/proj)
 ![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-lightgrey)
