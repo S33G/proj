@@ -331,7 +331,12 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ViewResult:
 		switch {
 		case key.Matches(msg, m.keys.Back), key.Matches(msg, m.keys.Quit):
-			m.view = ViewActions
+			// Go back to the appropriate view
+			if m.selectedProject != nil {
+				m.view = ViewActions
+			} else {
+				m.view = ViewProjects
+			}
 			return m, nil
 		default:
 			// Pass keys to viewport for scrolling
