@@ -321,6 +321,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, createProject(projectName, m.config.ReposPath)
 			}
 			return m, nil
+		default:
+			// Pass other keys to the text input
+			var cmd tea.Cmd
+			m.newProject, cmd = m.newProject.Update(msg)
+			return m, cmd
 		}
 
 	case ViewResult:
