@@ -73,38 +73,6 @@ curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/install.sh | 
    proj
    ```
 
-### Shell Integration (Recommended)
-
-To enable the "Change Directory" feature, add this to your shell configuration:
-
-**For Bash/Zsh (`~/.bashrc` or `~/.zshrc`):**
-```bash
-# proj - TUI project navigator
-proj() {
-  local output=$(mktemp)
-  PROJ_CD_FILE="$output" command ~/.local/bin/proj "$@"
-  if [ -s "$output" ]; then
-    cd "$(cat "$output")"
-  fi
-  rm -f "$output"
-}
-```
-
-**For Fish (`~/.config/fish/config.fish`):**
-```fish
-# proj - TUI project navigator  
-function proj
-  set output (mktemp)
-  env PROJ_CD_FILE="$output" ~/.local/bin/proj $argv
-  if test -s "$output"
-    cd (cat "$output")
-  end
-  rm -f "$output"
-end
-```
-
-Then reload your shell: `source ~/.bashrc` (or restart terminal)
-
 ## Usage
 
 ### Keyboard Shortcuts
