@@ -87,12 +87,20 @@ When a folder has no sub-projects:
 
 ### Toggle Grouped View
 
+## Current Behavior
+
+Nested/grouped projects are **always enabled** with a fixed scan depth of 1 level. The configuration options described below are planned but not yet implemented.
+
+### Planned Configuration Options
+
+> **Note:** These options are documented for future implementation. Currently, grouped view is always active.
+
 Control whether to use grouped view or flat view:
 
 ```json
 {
   "display": {
-    "showNestedProjects": true   // Enable grouped view (default)
+    "showNestedProjects": true   // Enable grouped view (planned, currently always true)
   }
 }
 ```
@@ -102,7 +110,7 @@ Control whether to use grouped view or flat view:
 - Parent folders with sub-projects become category headers
 - Shows organized hierarchy
 
-**When `showNestedProjects: false` (Flat View):**
+**When `showNestedProjects: false` (Flat View) - NOT YET IMPLEMENTED:**
 - Only shows root-level directories
 - No grouping or categories
 - Simple flat list of all projects
@@ -114,25 +122,25 @@ Control whether to use grouped view or flat view:
     └── project3/
   ```
 
-### Default Settings
-- `showNestedProjects`: true (grouped view enabled)
-- `maxScanDepth`: 1 (one level of nesting)
+### Default Settings (Hardcoded)
+- Grouped view: always enabled
+- Scan depth: 1 (one level of nesting)
 
-### Advanced: Custom Depth
+### Planned: Custom Depth
 
-For grouped view, you can control scan depth:
+> **Note:** `maxScanDepth` configuration is not yet implemented.
+
+For grouped view, you can control scan depth (planned feature):
 
 Edit your config file:
 ```json
 {
   "display": {
     "showNestedProjects": true,
-    "maxScanDepth": 2   // Scan 2 levels deep (categories can have categories)
+    "maxScanDepth": 2   // Planned: Scan 2 levels deep
   }
 }
 ```
-
-Note: Setting `showNestedProjects: false` overrides `maxScanDepth` and forces flat view.
 
 ## Implementation Details
 

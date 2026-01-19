@@ -312,6 +312,8 @@ How to sort projects in the list.
 
 Whether to show git branch and dirty status in the project list.
 
+> **Note:** This option is currently defined but not yet implemented. Git status is always shown.
+
 ```json
 {
   "display": {
@@ -326,6 +328,8 @@ Whether to show git branch and dirty status in the project list.
 **Default:** `true`
 
 Whether to show detected language in the project list.
+
+> **Note:** This option is currently defined but not yet implemented. Language is always shown.
 
 ```json
 {
