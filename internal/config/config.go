@@ -209,3 +209,11 @@ func ExpandPath(path string) string {
 	}
 	return path
 }
+
+// IsFeatureEnabled checks if a feature is enabled in the configuration
+// This implements the FeatureConfig interface for the features package
+func (c *Config) IsFeatureEnabled(name string) bool {
+	// For now, return false as features are not yet implemented in config
+	// This can be extended when feature flags are added to the Config struct
+	return false
+}
