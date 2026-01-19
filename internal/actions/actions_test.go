@@ -197,7 +197,7 @@ func TestParseCommand(t *testing.T) {
 		{"echo hello world", []string{"echo", "hello", "world"}},
 		{`cmd "arg with spaces" 'and more'`, []string{"cmd", "arg with spaces", "and more"}},
 		{"single", []string{"single"}},
-		{"", []string{}},
+		{"", nil},
 	}
 
 	for _, tt := range tests {
@@ -318,8 +318,9 @@ func TestDetectPythonCommands(t *testing.T) {
 	if cmd.Args[0] != "pip" {
 		t.Fatalf("expected pip install, got %v", cmd.Args)
 	}
-	if len(cmd.Args) < 3 || cmd.Args[2] != "requirements.txt" {
-		t.Fatalf("expected pip install -r requirements.txt, got %v", cmd.Args)
+	expectedArgs := []string{"pip", "install", "-r", "requirements.txt"}
+	if !reflect.DeepEqual(cmd.Args, expectedArgs) {
+		t.Fatalf("expected %v, got %v", expectedArgs, cmd.Args)
 	}
 }
 
