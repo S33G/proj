@@ -1,11 +1,11 @@
 # golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 
-version: 2
+version: "2"
 
 run:
   timeout: 5m
-  tests: false  # Don't run linters on test files
+  tests: false
 
 linters:
   enable:
@@ -17,32 +17,5 @@ linters:
     - misspell
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  exclude-rules:
-    # Exclude errcheck for test files (test setup often ignores errors intentionally)
-    - path: _test\.go
-      linters:
-        - errcheck
-
-    # Allow unused variables in tests
-    - path: _test\.go
-      linters:
-        - unused
-
-    # Ignore defer file.Close() errors (cleanup is best effort)
-    - linters:
-        - errcheck
-      text: "Error return value of `.*Close` is not checked"
-
-    # Ignore fmt.Fprint errors (output to TUI buffer)
-    - linters:
-        - errcheck
-      text: "Error return value of `fmt.Fprint"
-
-    # Allow unused style variables (may be used in future)
-    - linters:
-        - unused
-      text: "var .*(Style|Patterns) is unused"
