@@ -98,9 +98,21 @@ install_binary() {
     
     # Download binary
     if command -v curl >/dev/null 2>&1; then
-        curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/proj" || error "Failed to download binary"
+        HTTP_CODE=$(curl -sSL -w "%{http_code}" -o "$TMP_DIR/proj" "$DOWNLOAD_URL") || error "Failed to download binary"
+        if [ "$HTTP_CODE" -ne 200 ]; then
+            error "Failed to download binary: HTTP $HTTP_CODE. The release may not have binaries attached yet."
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        wget -qO "$TMP_DIR/proj" "$DOWNLOAD_URL" || error "Failed to download binary"
+        wget -qO "$TMP_DIR/proj" "$DOWNLOAD_URL" 2>&1 || error "Failed to download binary"
+        if [ ! -s "$TMP_DIR/proj" ]; then
+            error "Failed to download binary: empty file"
+        fi
+    fi
+    
+    # Verify the downloaded file is a valid binary (not an HTML error page)
+    if file "$TMP_DIR/proj" | grep -qE "text|HTML"; then
+        CONTENT=$(head -c 100 "$TMP_DIR/proj")
+        error "Downloaded file is not a valid binary. Content: $CONTENT\nThe release may not have binaries attached yet."
     fi
     
     # Make executable
