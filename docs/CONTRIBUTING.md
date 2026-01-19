@@ -313,6 +313,10 @@ Include:
 - Use case / why it would be helpful
 - Any implementation ideas (optional)
 
+## Releases
+
+Maintainers: See [RELEASE.md](RELEASE.md) for the release process and version management guidelines.
+
 ## Getting Help
 
 - Open an issue for questions

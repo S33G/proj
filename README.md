@@ -308,6 +308,7 @@ proj/
 - [Configuration Reference](docs/CONFIG.md)
 - [Plugin Development](docs/PLUGINS.md)
 - [Installation Guide](docs/INSTALL.md)
+- [Release Guide](docs/RELEASE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 
 ## Contributing
