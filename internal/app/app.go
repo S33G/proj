@@ -209,6 +209,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Refresh):
+			// Rescan projects
+			m.view = ViewLoading
+			m.message = "Rescanning projects..."
+			return m, m.loadProjects()
 		case key.Matches(msg, m.keys.Sort):
 			// Cycle through sort options
 			m.currentSortBy = m.nextSortBy()
@@ -299,6 +304,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Refresh):
+			// Rescan projects and refresh group view
+			m.message = "Rescanning projects..."
+			return m, m.loadProjectsAndRefreshGroup()
 		case key.Matches(msg, m.keys.New):
 			// Create new project inside the group
 			m.newProject = views.NewNewProjectModel()
@@ -626,7 +635,7 @@ func (m Model) renderProjectsView() string {
 	sortLabel := m.getSortLabel()
 	sortInfo := tui.SubtitleStyle.Render(fmt.Sprintf("Sort: %s", sortLabel))
 
-	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select/expand  •  s: sort  •  n: new  •  q: quit")
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  s: sort  •  n: new  •  r/F5: refresh  •  q: quit")
 
 	errorMsg := ""
 	if m.err != nil {
@@ -664,7 +673,7 @@ func (m Model) renderGroupView() string {
 
 	projectCount := tui.SubtitleStyle.Render(fmt.Sprintf("%d projects", len(m.groupProjects)))
 
-	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  n: new project  •  esc: back  •  q: quit")
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  n: new  •  r/F5: refresh  •  esc: back  •  q: quit")
 
 	return tui.ContainerStyle.Render(
 		lipgloss.JoinVertical(

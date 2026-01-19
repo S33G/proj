@@ -4,15 +4,16 @@ import "github.com/charmbracelet/bubbles/key"
 
 // KeyMap defines keyboard shortcuts
 type KeyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Enter  key.Binding
-	Back   key.Binding
-	Quit   key.Binding
-	New    key.Binding
-	Search key.Binding
-	Sort   key.Binding
-	Help   key.Binding
+	Up      key.Binding
+	Down    key.Binding
+	Enter   key.Binding
+	Back    key.Binding
+	Quit    key.Binding
+	New     key.Binding
+	Search  key.Binding
+	Sort    key.Binding
+	Help    key.Binding
+	Refresh key.Binding
 }
 
 // DefaultKeyMap returns the default key mappings
@@ -53,6 +54,10 @@ func DefaultKeyMap() KeyMap {
 		Help: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "help"),
+		),
+		Refresh: key.NewBinding(
+			key.WithKeys("f5", "r"),
+			key.WithHelp("F5/r", "refresh"),
 		),
 	}
 }

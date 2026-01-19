@@ -140,7 +140,8 @@ func (s *Scanner) scanWithGroups(basePath string) ([]*Project, error) {
 	return projects, nil
 }
 
-// findChildProjects finds all projects in a directory (1 level only)
+// findChildProjects finds all directories in a directory (1 level only)
+// Shows ALL directories, not just those with project indicators
 func (s *Scanner) findChildProjects(dirPath string) []*Project {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -164,13 +165,20 @@ func (s *Scanner) findChildProjects(dirPath string) []*Project {
 
 		childPath := filepath.Join(dirPath, entry.Name())
 
-		if isProjectRoot(childPath) {
-			proj, err := s.scanProject(entry.Name(), childPath, 1)
-			if err != nil {
-				continue
-			}
-			projects = append(projects, proj)
+		proj, err := s.scanProject(entry.Name(), childPath, 1)
+		if err != nil {
+			continue
 		}
+
+		// If it's not a project root, mark it as an empty directory
+		if !isProjectRoot(childPath) {
+			proj.Language = ""
+			proj.IsGitRepo = false
+			proj.GitBranch = ""
+			proj.GitDirty = false
+		}
+
+		projects = append(projects, proj)
 	}
 
 	return projects
