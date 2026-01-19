@@ -120,8 +120,21 @@ func (s *Scanner) scanWithGroups(basePath string) ([]*Project, error) {
 				child.Depth = 1
 				projects = append(projects, child)
 			}
+		} else {
+			// It's a regular directory (not a project yet, but still show it)
+			// This allows users to see directories they create and potentially initialize as projects
+			proj, err := s.scanProject(entry.Name(), dirPath, 0)
+			if err != nil {
+				continue
+			}
+			// Mark as not a real project yet (no language, no git status)
+			proj.Language = ""
+			proj.IsGitRepo = false
+			proj.GitBranch = ""
+			proj.GitDirty = false
+			projects = append(projects, proj)
 		}
-		// If neither a project nor a group, skip it
+		// No longer skip any directories - show all
 	}
 
 	return projects, nil
