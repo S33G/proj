@@ -83,70 +83,19 @@ When a folder has no sub-projects:
 - No special formatting
 - Normal white text with ▸ marker
 
-### Configuration
-
-### Toggle Grouped View
-
 ## Current Behavior
 
-Nested/grouped projects are **always enabled** with a fixed scan depth of 1 level. The configuration options described below are planned but not yet implemented.
+Nested/grouped projects are **always enabled** with a fixed scan depth of 1 level.
 
-### Planned Configuration Options
-
-> **Note:** These options are documented for future implementation. Currently, grouped view is always active.
-
-Control whether to use grouped view or flat view:
-
-```json
-{
-  "display": {
-    "showNestedProjects": true   // Enable grouped view (planned, currently always true)
-  }
-}
-```
-
-**When `showNestedProjects: true` (Grouped View):**
-- Scans 1 level deep
-- Parent folders with sub-projects become category headers
-- Shows organized hierarchy
-
-**When `showNestedProjects: false` (Flat View) - NOT YET IMPLEMENTED:**
-- Only shows root-level directories
-- No grouping or categories
-- Simple flat list of all projects
-- Good for structure like:
-  ```
-  code/
-    ├── project1/
-    ├── project2/
-    └── project3/
-  ```
-
-### Default Settings (Hardcoded)
 - Grouped view: always enabled
 - Scan depth: 1 (one level of nesting)
-
-### Planned: Custom Depth
-
-> **Note:** `maxScanDepth` configuration is not yet implemented.
-
-For grouped view, you can control scan depth (planned feature):
-
-Edit your config file:
-```json
-{
-  "display": {
-    "showNestedProjects": true,
-    "maxScanDepth": 2   // Planned: Scan 2 levels deep
-  }
-}
-```
+- All directories within a group are shown (not just those with project indicators)
 
 ## Implementation Details
 
 ### Scanner Changes
-- `Scan()` now calls `scanRecursive()` with depth tracking
-- Parent projects are scanned first, followed by children
+- `Scan()` calls `scanWithGroups()` to detect parent/child relationships
+- `findChildProjects()` finds all directories within a group (1 level deep)
 - Each level respects exclusion patterns and hidden directory settings
 
 ### Performance Considerations
