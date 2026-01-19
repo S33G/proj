@@ -86,3 +86,11 @@ tidy:
 # Download dependencies
 deps:
 	$(GO) mod download
+
+# Release using commitizen (test mode)
+release-dry-run:
+	@./scripts/release.sh --dry-run
+
+# Release using commitizen (creates tag and pushes)
+release:
+	@./scripts/release.sh
