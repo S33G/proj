@@ -42,15 +42,12 @@ jobs:
           
           go build -ldflags "-s -w -X main.version=${VERSION}" -o "${BINARY_NAME}" ./cmd/proj
           
-          # Create tarball
-          tar -czvf "${BINARY_NAME}.tar.gz" "${BINARY_NAME}"
-          
-          # Create checksum
-          sha256sum "${BINARY_NAME}.tar.gz" > "${BINARY_NAME}.tar.gz.sha256"
+          # Create checksum for raw binary
+          sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            proj-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
-            proj-${{ matrix.os }}-${{ matrix.arch }}.tar.gz.sha256
+            proj-${{ matrix.os }}-${{ matrix.arch }}
+            proj-${{ matrix.os }}-${{ matrix.arch }}.sha256
