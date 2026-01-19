@@ -131,6 +131,55 @@ setup_shell_integration() {
     echo ""
     echo "To enable the 'cd' command feature, add this to your shell configuration:"
     echo ""
+
+    # Detect shell
+    SHELL_NAME=$(basename "$SHELL")
+    
+    case "$SHELL_NAME" in
+        bash)
+            RC_FILE="$HOME/.bashrc"
+            show_bash_integration
+            ;;
+        zsh)
+            RC_FILE="$HOME/.zshrc"  
+            show_zsh_integration
+            ;;
+        fish)
+            RC_FILE="$HOME/.config/fish/config.fish"
+            show_fish_integration
+            ;;
+        *)
+            RC_FILE=""
+            show_generic_integration
+            ;;
+    esac
+
+    if [ -n "$RC_FILE" ] && [ "$SHELL_NAME" != "fish" ]; then
+        echo "Detected shell: $SHELL_NAME"
+        echo "Add to: $RC_FILE"
+        echo ""
+        read -p "Would you like to add this automatically? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            add_shell_integration_$SHELL_NAME
+            success "Added to $RC_FILE"
+            warn "Run 'source $RC_FILE' or restart your shell to apply changes"
+        fi
+    elif [ "$SHELL_NAME" = "fish" ]; then
+        echo "Detected shell: fish"
+        echo "Add to: $RC_FILE"
+        echo ""
+        read -p "Would you like to add this automatically? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            add_fish_integration
+            success "Added to $RC_FILE"
+            warn "Restart your shell to apply changes"
+        fi
+    fi
+}
+
+show_bash_integration() {
     echo "  # proj - TUI project navigator"
     echo "  proj() {"
     echo "    local output=\$(mktemp)"
@@ -141,43 +190,86 @@ setup_shell_integration() {
     echo "    rm -f \"\$output\""
     echo "  }"
     echo ""
+}
 
-    # Detect shell
-    SHELL_NAME=$(basename "$SHELL")
+show_zsh_integration() {
+    echo "  # proj - TUI project navigator"
+    echo "  proj() {"
+    echo "    local output=\$(mktemp)"
+    echo "    PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\""
+    echo "    if [ -s \"\$output\" ]; then"
+    echo "      cd \"\$(cat \"\$output\")\""
+    echo "    fi"
+    echo "    rm -f \"\$output\""
+    echo "  }"
+    echo ""
+}
 
-    case "$SHELL_NAME" in
-        bash)
-            RC_FILE="$HOME/.bashrc"
-            ;;
-        zsh)
-            RC_FILE="$HOME/.zshrc"
-            ;;
-        *)
-            RC_FILE=""
-            ;;
-    esac
+show_fish_integration() {
+    echo "  # proj - TUI project navigator"
+    echo "  function proj"
+    echo "    set output (mktemp)"
+    echo "    env PROJ_CD_FILE=\"\$output\" $INSTALL_DIR/proj \$argv"
+    echo ""
+    echo "    if test -s \"\$output\""
+    echo "      cd (cat \"\$output\")"
+    echo "    end"
+    echo ""
+    echo "    rm -f \"\$output\""
+    echo "  end"
+    echo ""
+}
 
-    if [ -n "$RC_FILE" ]; then
-        echo "Detected shell: $SHELL_NAME"
-        echo "Add to: $RC_FILE"
-        echo ""
-        read -p "Would you like to add this automatically? [y/N] " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "" >> "$RC_FILE"
-            echo "# proj - TUI project navigator" >> "$RC_FILE"
-            echo "proj() {" >> "$RC_FILE"
-            echo "  local output=\$(mktemp)" >> "$RC_FILE"
-            echo "  PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\"" >> "$RC_FILE"
-            echo "  if [ -s \"\$output\" ]; then" >> "$RC_FILE"
-            echo "    cd \"\$(cat \"\$output\")\"" >> "$RC_FILE"
-            echo "  fi" >> "$RC_FILE"
-            echo "  rm -f \"\$output\"" >> "$RC_FILE"
-            echo "}" >> "$RC_FILE"
-            success "Added to $RC_FILE"
-            warn "Run 'source $RC_FILE' or restart your shell to apply changes"
-        fi
-    fi
+show_generic_integration() {
+    echo "  Unknown shell: $SHELL_NAME"
+    echo "  Please refer to the documentation for shell integration:"
+    echo "  https://github.com/${REPO}#shell-integration"
+    echo ""
+    echo "  Or adapt one of these examples:"
+    echo ""
+    show_bash_integration
+}
+
+add_shell_integration_bash() {
+    echo "" >> "$RC_FILE"
+    echo "# proj - TUI project navigator" >> "$RC_FILE"
+    echo "proj() {" >> "$RC_FILE"
+    echo "  local output=\$(mktemp)" >> "$RC_FILE"
+    echo "  PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\"" >> "$RC_FILE"
+    echo "  if [ -s \"\$output\" ]; then" >> "$RC_FILE"
+    echo "    cd \"\$(cat \"\$output\")\"" >> "$RC_FILE"
+    echo "  fi" >> "$RC_FILE"
+    echo "  rm -f \"\$output\"" >> "$RC_FILE"
+    echo "}" >> "$RC_FILE"
+}
+
+add_shell_integration_zsh() {
+    echo "" >> "$RC_FILE"
+    echo "# proj - TUI project navigator" >> "$RC_FILE"
+    echo "proj() {" >> "$RC_FILE"
+    echo "  local output=\$(mktemp)" >> "$RC_FILE"
+    echo "  PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\"" >> "$RC_FILE"
+    echo "  if [ -s \"\$output\" ]; then" >> "$RC_FILE"
+    echo "    cd \"\$(cat \"\$output\")\"" >> "$RC_FILE"
+    echo "  fi" >> "$RC_FILE"
+    echo "  rm -f \"\$output\"" >> "$RC_FILE"
+    echo "}" >> "$RC_FILE"
+}
+
+add_fish_integration() {
+    mkdir -p "$(dirname "$RC_FILE")"
+    echo "" >> "$RC_FILE"
+    echo "# proj - TUI project navigator" >> "$RC_FILE"
+    echo "function proj" >> "$RC_FILE"
+    echo "  set output (mktemp)" >> "$RC_FILE"
+    echo "  env PROJ_CD_FILE=\"\$output\" $INSTALL_DIR/proj \$argv" >> "$RC_FILE"
+    echo "" >> "$RC_FILE"
+    echo "  if test -s \"\$output\"" >> "$RC_FILE"
+    echo "    cd (cat \"\$output\")" >> "$RC_FILE"
+    echo "  end" >> "$RC_FILE"
+    echo "" >> "$RC_FILE"
+    echo "  rm -f \"\$output\"" >> "$RC_FILE"
+    echo "end" >> "$RC_FILE"
 }
 
 # Check PATH
