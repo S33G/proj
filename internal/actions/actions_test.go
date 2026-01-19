@@ -4,12 +4,41 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/s33g/proj/internal/config"
 	"github.com/s33g/proj/internal/git"
 	"github.com/s33g/proj/internal/project"
 )
+
+func writeFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("failed to write %s: %v", path, err)
+	}
+}
+
+func withTempCommand(t *testing.T, name string, fn func()) {
+	t.Helper()
+
+	dir := t.TempDir()
+	cmdPath := filepath.Join(dir, name)
+	writeFile(t, cmdPath, "#!/bin/sh\nexit 0")
+	if err := os.Chmod(cmdPath, 0o755); err != nil {
+		t.Fatalf("failed to chmod %s: %v", cmdPath, err)
+	}
+
+	origPath := os.Getenv("PATH")
+	if err := os.Setenv("PATH", dir+string(os.PathListSeparator)+origPath); err != nil {
+		t.Fatalf("failed to set PATH: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Setenv("PATH", origPath)
+	})
+
+	fn()
+}
 
 func TestNewExecutor(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -160,6 +189,24 @@ func TestUnknownAction(t *testing.T) {
 	}
 }
 
+func TestParseCommand(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"echo hello world", []string{"echo", "hello", "world"}},
+		{`cmd "arg with spaces" 'and more'`, []string{"cmd", "arg with spaces", "and more"}},
+		{"single", []string{"single"}},
+		{"", []string{}},
+	}
+
+	for _, tt := range tests {
+		if got := parseCommand(tt.input); !reflect.DeepEqual(got, tt.expected) {
+			t.Fatalf("parseCommand(%q) = %#v, want %#v", tt.input, got, tt.expected)
+		}
+	}
+}
+
 func TestGitLog_NonGitRepo(t *testing.T) {
 	cfg := config.DefaultConfig()
 	executor := NewExecutor(cfg)
@@ -172,6 +219,107 @@ func TestGitLog_NonGitRepo(t *testing.T) {
 
 	if result.Success {
 		t.Error("gitLog should fail on non-git repo")
+	}
+}
+
+func TestDetectNodeTestCommandPrefersAvailableManagers(t *testing.T) {
+	cfg := config.DefaultConfig()
+	executor := NewExecutor(cfg)
+
+	dir := t.TempDir()
+	proj := &project.Project{Path: dir, Language: "JavaScript"}
+
+	// Bun lock takes priority
+	writeFile(t, filepath.Join(dir, "bun.lockb"), "")
+	if cmd := executor.detectNodeTestCommand(proj); cmd.Args[0] != "bun" {
+		t.Fatalf("expected bun test command, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "bun.lockb"))
+
+	// pnpm next
+	writeFile(t, filepath.Join(dir, "pnpm-lock.yaml"), "")
+	if cmd := executor.detectNodeTestCommand(proj); cmd.Args[0] != "pnpm" {
+		t.Fatalf("expected pnpm test command, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "pnpm-lock.yaml"))
+
+	// yarn next
+	writeFile(t, filepath.Join(dir, "yarn.lock"), "")
+	if cmd := executor.detectNodeTestCommand(proj); cmd.Args[0] != "yarn" {
+		t.Fatalf("expected yarn test command, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "yarn.lock"))
+
+	// fall back to npm when package.json present
+	writeFile(t, filepath.Join(dir, "package.json"), `{}`)
+	if cmd := executor.detectNodeTestCommand(proj); cmd.Args[0] != "npm" {
+		t.Fatalf("expected npm test command, got %v", cmd.Args)
+	}
+}
+
+func TestDetectNodeInstallCommandMatchesLocks(t *testing.T) {
+	cfg := config.DefaultConfig()
+	executor := NewExecutor(cfg)
+	dir := t.TempDir()
+	proj := &project.Project{Path: dir, Language: "JavaScript"}
+
+	writeFile(t, filepath.Join(dir, "bun.lockb"), "")
+	if cmd := executor.detectNodeInstallCommand(proj); cmd.Args[0] != "bun" {
+		t.Fatalf("expected bun install, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "bun.lockb"))
+
+	writeFile(t, filepath.Join(dir, "pnpm-lock.yaml"), "")
+	if cmd := executor.detectNodeInstallCommand(proj); cmd.Args[0] != "pnpm" {
+		t.Fatalf("expected pnpm install, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "pnpm-lock.yaml"))
+
+	writeFile(t, filepath.Join(dir, "yarn.lock"), "")
+	if cmd := executor.detectNodeInstallCommand(proj); cmd.Args[0] != "yarn" {
+		t.Fatalf("expected yarn install, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "yarn.lock"))
+
+	if cmd := executor.detectNodeInstallCommand(proj); cmd.Args[0] != "npm" {
+		t.Fatalf("expected npm install fallback, got %v", cmd.Args)
+	}
+}
+
+func TestDetectPythonCommands(t *testing.T) {
+	cfg := config.DefaultConfig()
+	executor := NewExecutor(cfg)
+	dir := t.TempDir()
+	proj := &project.Project{Path: dir, Language: "Python"}
+
+	// Prefer pytest when available in PATH
+	withTempCommand(t, "pytest", func() {
+		cmd := executor.detectPythonTestCommand(proj)
+		if cmd.Args[0] != "pytest" {
+			t.Fatalf("expected pytest command, got %v", cmd.Args)
+		}
+	})
+
+	// Install command priorities
+	writeFile(t, filepath.Join(dir, "Pipfile"), "")
+	if cmd := executor.detectPythonInstallCommand(proj); cmd.Args[0] != "pipenv" {
+		t.Fatalf("expected pipenv install, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "Pipfile"))
+
+	writeFile(t, filepath.Join(dir, "poetry.lock"), "")
+	if cmd := executor.detectPythonInstallCommand(proj); cmd.Args[0] != "poetry" {
+		t.Fatalf("expected poetry install, got %v", cmd.Args)
+	}
+	os.Remove(filepath.Join(dir, "poetry.lock"))
+
+	writeFile(t, filepath.Join(dir, "requirements.txt"), "")
+	cmd := executor.detectPythonInstallCommand(proj)
+	if cmd.Args[0] != "pip" {
+		t.Fatalf("expected pip install, got %v", cmd.Args)
+	}
+	if len(cmd.Args) < 3 || cmd.Args[2] != "requirements.txt" {
+		t.Fatalf("expected pip install -r requirements.txt, got %v", cmd.Args)
 	}
 }
 
