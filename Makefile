@@ -1,4 +1,4 @@
-.PHONY: build test clean install uninstall dev lint
+.PHONY: build test clean install uninstall dev lint lint-fix
 
 # Variables
 BINARY_NAME=proj
@@ -69,6 +69,10 @@ dev:
 # Lint code
 lint:
 	golangci-lint run
+
+# Lint and auto-fix issues
+lint-fix:
+	golangci-lint run --fix
 
 # Format code
 fmt:
