@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** - Bug fixes
 - **Security** - Security-related changes
 
+## v1.1.0 (2026-01-19)
+
+### Feat
+
+- add sort cycling with 's' key
+
+### Fix
+
+- update golangci-lint config for v2 compatibility
+- correct failing test expectations in actions_test.go
+- pin golangci-lint to v2.8 for config compatibility
+- correct YAML structure in CI workflow
+- update CI badge to explicitly reference main branch
+- prevent panic after creating new project
+- enable text input in new project view
+
 ## v1.0.0 (2026-01-19)
 
 ### Feat
