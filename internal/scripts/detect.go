@@ -124,7 +124,7 @@ func detectMakefile(projectPath string) []Script {
 			return nil
 		}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Match target definitions like "target:" but not ".PHONY:" or variable assignments
 	targetRegex := regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:`)
@@ -189,7 +189,7 @@ func detectJustfile(projectPath string) []Script {
 			return nil
 		}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Match recipe definitions
 	recipeRegex := regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:`)
