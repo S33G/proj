@@ -11,6 +11,7 @@ A fast, intuitive TUI project navigator for developers. Quickly browse, open, an
 ## Features
 
 - **Fast Project Discovery** - Instantly scan and list all projects in your code directory
+- **Smart Sorting** - Cycle through Alphabetical, Last Modified, or Language grouping with `s` key
 - **Language Detection** - Automatically detects 17+ programming languages
 - **Git Integration** - Shows branch, dirty status, and supports git operations
 - **Docker & Compose Support** - Detect and manage containerized projects with built-in actions 🐳
@@ -18,6 +19,7 @@ A fast, intuitive TUI project navigator for developers. Quickly browse, open, an
 - **Built-in Actions** - Open editor, run tests, install deps, git operations, Docker commands
 - **Plugin System** - Extend with custom actions via JSON-RPC plugins
 - **Shell Integration** - Change directory directly from the TUI
+- **Quick Project Creation** - Press `n` to create new projects on the fly
 - **Keyboard-Driven** - Vi-style navigation with intuitive shortcuts
 
 ## Demo
@@ -25,6 +27,7 @@ A fast, intuitive TUI project navigator for developers. Quickly browse, open, an
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  📁 Projects in ~/code (42 projects)                    │
+│  Sort: Alphabetical (A-Z)                               │
 ├─────────────────────────────────────────────────────────┤
 │  > myapp           Go       main      ●                 │
 │    webapp          TypeScript feat/auth                 │
@@ -32,7 +35,7 @@ A fast, intuitive TUI project navigator for developers. Quickly browse, open, an
 │    dotfiles        Shell    main                        │
 │    ml-project      Python   main                        │
 └─────────────────────────────────────────────────────────┘
-  ↑/↓: navigate  •  enter: select  •  n: new  •  q: quit
+  ↑/↓: navigate  •  enter: select  •  s: sort  •  n: new  •  q: quit
 ```
 
 ## Quick Start
@@ -99,6 +102,7 @@ Then reload your shell: `source ~/.bashrc`
 | `Enter` | Select project / Execute action |
 | `Esc` | Go back |
 | `n` | New project |
+| `s` | Cycle sort (Name → Modified → Language) |
 | `q` | Quit |
 | `/` | Search/filter |
 
