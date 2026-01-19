@@ -7,8 +7,119 @@ This guide explains how to release a new version of proj.
 - Git repository access
 - Go 1.24+ installed locally
 - A GitHub account with push access to the repository
+- Commitizen installed (`pipx install commitizen`)
 
-## Release Process
+## Automated Release (Recommended)
+
+The project includes an automated release script that handles version bumping, changelog generation, and tag creation using commitizen.
+
+### Quick Start
+
+```bash
+# Test the release (dry-run mode)
+make release-dry-run
+# OR
+./scripts/release.sh --dry-run
+
+# Create the actual release
+make release
+# OR
+./scripts/release.sh
+```
+
+### How It Works
+
+The `release.sh` script automates the entire release process:
+
+1. **Validates Git State**
+   - Checks for uncommitted changes (fails if any exist)
+   - Confirms you're on the `main` branch
+   - Shows warning if on a different branch
+
+2. **Analyzes Commits**
+   - Uses commitizen to analyze conventional commits since last release
+   - Groups commits by type: feat, fix, refactor, ci, docs, chore
+   - Shows commit breakdown with counts
+
+3. **Determines Version Bump**
+   - **MAJOR** (1.0.0): Breaking changes with `BREAKING CHANGE:` footer
+   - **MINOR** (0.x.0): New features with `feat:` prefix
+   - **PATCH** (0.0.x): Bug fixes with `fix:` prefix
+   - Other commit types (ci, refactor, docs) don't trigger bumps
+
+4. **Generates Changelog**
+   - Creates/updates `CHANGELOG.md` automatically
+   - Groups changes by type (Feat, Fix, Refactor, etc.)
+   - Includes commit messages and dates
+
+5. **Creates and Pushes Tag**
+   - Creates an annotated git tag with the new version
+   - Pushes tag to GitHub
+   - Triggers GitHub Actions release workflow
+
+### Example Output
+
+```bash
+$ ./scripts/release.sh --dry-run
+
+🚀 Starting release process...
+📋 Current version: v0.9.2
+
+📝 Recent commits since last release:
+5be0803 feat: add automated release script with commitizen
+8bb64ed refactor: remove unused dimStyle variable
+2ada360 refactor: remove unused actionDescStyle variable
+7fa6bd8 fix: handle file.Close errors in script detection
+
+📊 Analyzing commits...
+Found 15 commits since last release
+
+Commit breakdown:
+      5 ci
+      3 refactor
+      3 fix
+      2 feat
+      1 docs
+      1 chore
+
+🔍 DRY RUN MODE - No changes will be made
+
+Would run: cz bump --changelog
+bump: version 0.9.2 → 0.10.0
+tag to create: v0.10.0
+increment detected: MINOR
+```
+
+### Script Options
+
+```bash
+# Show help
+./scripts/release.sh --help
+
+# Test without making changes
+./scripts/release.sh --dry-run
+
+# Execute the release
+./scripts/release.sh
+```
+
+### Configuration
+
+Release settings are configured in `.cz.toml`:
+
+```toml
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.9.2"
+tag_format = "v$version"
+version_files = [".cz.toml:version"]
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+changelog_incremental = true
+changelog_start_rev = "v0.9.2"
+```
+
+## Manual Release Process
 
 ### 1. Prepare Your Changes
 
@@ -207,7 +318,7 @@ After a successful release:
 
 The release pipeline is defined in [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 
-**Triggered by:** Creating a GitHub Release with a `v*` tag  
+**Triggered by:** Creating a GitHub Release with a `v*` tag
 **Steps:**
 1. Checkout code
 2. Setup Go 1.24
