@@ -134,7 +134,7 @@ setup_shell_integration() {
     echo ""
     echo "To enable the 'cd' command feature, add this to your shell configuration:"
     echo ""
-    echo "  ${GREEN}# proj - TUI project navigator${NC}"
+    echo "  # proj - TUI project navigator"
     echo "  proj() {"
     echo "    local output=\$(mktemp)"
     echo "    PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\""
