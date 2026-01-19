@@ -11,6 +11,7 @@ type KeyMap struct {
 	Quit   key.Binding
 	New    key.Binding
 	Search key.Binding
+	Sort   key.Binding
 	Help   key.Binding
 }
 
@@ -44,6 +45,10 @@ func DefaultKeyMap() KeyMap {
 		Search: key.NewBinding(
 			key.WithKeys("/"),
 			key.WithHelp("/", "search"),
+		),
+		Sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "sort"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

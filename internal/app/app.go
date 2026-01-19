@@ -51,6 +51,7 @@ type Model struct {
 	branchList      list.Model
 	targetBranch    string
 	keys            tui.KeyMap
+	currentSortBy   project.SortBy // Current sort order
 	width           int
 	height          int
 	err             error
@@ -84,6 +85,7 @@ func New(cfg *config.Config) Model {
 		pluginRegistry: registry,
 		view:           ViewLoading,
 		keys:           tui.DefaultKeyMap(),
+		currentSortBy:  project.SortBy(cfg.Display.SortBy),
 	}
 }
 
@@ -197,6 +199,15 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Sort):
+			// Cycle through sort options
+			m.currentSortBy = m.nextSortBy()
+			// Re-sort projects
+			m.projects = project.Sort(m.projects, m.currentSortBy)
+			// Update project list with sorted projects
+			m.projectList = views.NewProjectListModel(m.projects)
+			m.updateSizes()
+			return m, nil
 		case key.Matches(msg, m.keys.New):
 			m.newProject = views.NewNewProjectModel()
 			m.view = ViewNewProject
@@ -484,7 +495,11 @@ func (m Model) renderProjectsView() string {
 		content = m.projectList.View()
 	}
 
-	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  n: new project  •  q: quit")
+	// Show current sort mode
+	sortLabel := m.getSortLabel()
+	sortInfo := tui.SubtitleStyle.Render(fmt.Sprintf("Sort: %s", sortLabel))
+
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  s: sort  •  n: new  •  q: quit")
 
 	errorMsg := ""
 	if m.err != nil {
@@ -498,6 +513,7 @@ func (m Model) renderProjectsView() string {
 		lipgloss.JoinVertical(
 			lipgloss.Left,
 			header,
+			sortInfo,
 			"",
 			content,
 			errorMsg,
@@ -864,4 +880,32 @@ func (d branchDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 	}
 
 	_, _ = fmt.Fprint(w, str)
+}
+
+// nextSortBy cycles to the next sort option
+func (m Model) nextSortBy() project.SortBy {
+	switch m.currentSortBy {
+	case project.SortByName:
+		return project.SortByLastModified
+	case project.SortByLastModified:
+		return project.SortByLanguage
+	case project.SortByLanguage:
+		return project.SortByName
+	default:
+		return project.SortByName
+	}
+}
+
+// getSortLabel returns a human-readable label for the current sort mode
+func (m Model) getSortLabel() string {
+	switch m.currentSortBy {
+	case project.SortByName:
+		return "Alphabetical (A-Z)"
+	case project.SortByLastModified:
+		return "Last Modified"
+	case project.SortByLanguage:
+		return "Language"
+	default:
+		return "Unknown"
+	}
 }

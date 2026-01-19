@@ -140,6 +140,7 @@ type SortBy string
 const (
 	SortByName         SortBy = "name"
 	SortByLastModified SortBy = "lastModified"
+	SortByLanguage     SortBy = "language"
 )
 
 // Sort sorts projects by the specified criteria
@@ -155,6 +156,13 @@ func Sort(projects []*Project, by SortBy) []*Project {
 	case SortByLastModified:
 		sort.Slice(sorted, func(i, j int) bool {
 			return sorted[i].LastModified.After(sorted[j].LastModified)
+		})
+	case SortByLanguage:
+		sort.Slice(sorted, func(i, j int) bool {
+			if sorted[i].Language == sorted[j].Language {
+				return sorted[i].Name < sorted[j].Name
+			}
+			return sorted[i].Language < sorted[j].Language
 		})
 	}
 
