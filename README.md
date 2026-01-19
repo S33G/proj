@@ -45,7 +45,7 @@ cd proj
 make install
 ```
 
-**One-line install (after releases are published):**
+**One-line install:**
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/install.sh | bash
