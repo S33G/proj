@@ -17,7 +17,6 @@ import (
 var (
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(2)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(tui.Primary).Bold(true)
-	dimStyle          = lipgloss.NewStyle().Foreground(tui.Muted)
 	langStyle         = lipgloss.NewStyle().Foreground(tui.Accent)
 	branchStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
 	dirtyStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6347")).Bold(true)
