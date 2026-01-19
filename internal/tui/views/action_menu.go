@@ -74,7 +74,7 @@ func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 	if hasIcon {
 		label = fmt.Sprintf("%s  %s", a.Icon, label)
 	}
-	
+
 	// Add arrow indicator for submenus
 	if a.IsSubmenu {
 		label = label + " →"
@@ -230,7 +230,7 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 				// Create submenu for sources with 3+ scripts
 				icon := getScriptIcon(source)
 				sourceName := getSourceDisplayName(source)
-				
+
 				children := make([]Action, len(scriptsInSource))
 				for i, s := range scriptsInSource {
 					desc := s.Desc
@@ -293,7 +293,7 @@ func DefaultActions(proj *project.Project, gitEnabled, testsEnabled bool) []Acti
 						Desc:  da.Description,
 						Icon:  "",
 					}
-					
+
 					if strings.HasPrefix(da.ID, "compose-") {
 						composeChildren = append(composeChildren, action)
 					} else {

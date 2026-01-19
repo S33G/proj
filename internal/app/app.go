@@ -272,12 +272,12 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 					return m, nil
 				}
-				
+
 				// Check if this is a submenu action
 				if action.IsSubmenu {
 					// Push current menu onto stack
 					m.submenuStack = append(m.submenuStack, m.actionMenu)
-					
+
 					// Create new menu with submenu items
 					submenuActions := append(action.Children, views.Action{
 						ID:    "back",
@@ -289,7 +289,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.updateSizes()
 					return m, nil
 				}
-				
+
 				// Special handling for git-branch - show interactive picker
 				if action.ID == "git-branch" {
 					m.view = ViewExecuting
@@ -507,7 +507,7 @@ func (m Model) renderActionsView() string {
 	)
 
 	content := m.actionMenu.View()
-	
+
 	// Update help text based on whether we're in a submenu
 	helpText := "↑/↓: navigate  •  enter: execute  •  esc: back  •  q: quit"
 	if len(m.submenuStack) > 0 {
