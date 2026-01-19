@@ -71,50 +71,88 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	p := i.Project
 	isSelected := index == m.Index()
+	isGroup := p.IsGroup
+	hasChildren := p.SubProjectCount > 0
 
 	// Build the line
 	var line strings.Builder
 
-	// Project name
-	name := p.Name
+	// Prefix for selection
+	prefix := "  "
 	if isSelected {
-		line.WriteString(selectedItemStyle.Render("▸ " + name))
-	} else {
-		line.WriteString(itemStyle.Render("  " + name))
+		prefix = "▸ "
 	}
 
-	// Add padding for alignment
-	padding := 25 - len(p.Name)
+	// Project/group name
+	name := p.Name
+	if hasChildren {
+		name = fmt.Sprintf("%s (%d)", name, p.SubProjectCount)
+	}
+
+	// Style based on selection and type
+	if isGroup {
+		// Pure group (folder containing projects)
+		groupStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA500")).Bold(true)
+		if isSelected {
+			line.WriteString(selectedItemStyle.Render(prefix + "📁 " + name))
+		} else {
+			line.WriteString(itemStyle.Render(prefix + groupStyle.Render("📁 " + name)))
+		}
+	} else if hasChildren {
+		// Monorepo (project with sub-projects)
+		if isSelected {
+			line.WriteString(selectedItemStyle.Render(prefix + "📦 " + name))
+		} else {
+			line.WriteString(itemStyle.Render(prefix + "📦 " + name))
+		}
+	} else if isSelected {
+		line.WriteString(selectedItemStyle.Render(prefix + name))
+	} else {
+		line.WriteString(itemStyle.Render(prefix + name))
+	}
+
+	// Calculate padding for alignment
+	visibleLen := len(prefix) + len(p.Name)
+	if hasChildren {
+		visibleLen += len(fmt.Sprintf(" (%d)", p.SubProjectCount))
+	}
+	if isGroup || hasChildren {
+		visibleLen += 3 // icon
+	}
+	padding := 35 - visibleLen
 	if padding < 2 {
 		padding = 2
 	}
 	line.WriteString(strings.Repeat(" ", padding))
 
-	// Language
-	if p.Language != "" && p.Language != "Unknown" {
-		icon := language.GetIcon(p.Language)
-		line.WriteString(langStyle.Render(fmt.Sprintf("%s %-12s", icon, p.Language)))
-	} else {
-		line.WriteString(strings.Repeat(" ", 14))
-	}
-
-	// Git branch
-	if p.GitBranch != "" {
-		branch := fmt.Sprintf(" %s", p.GitBranch)
-		if len(branch) > 30 {
-			branch = branch[:27] + "..."
+	// Only show details for actual projects (not pure groups)
+	if !p.IsGroup {
+		// Language
+		if p.Language != "" && p.Language != "Unknown" {
+			icon := language.GetIcon(p.Language)
+			line.WriteString(langStyle.Render(fmt.Sprintf("%s %-10s", icon, p.Language)))
+		} else {
+			line.WriteString(strings.Repeat(" ", 12))
 		}
-		line.WriteString(branchStyle.Render(branch))
-		if p.GitDirty {
-			line.WriteString(dirtyStyle.Render("*"))
-		}
-	}
 
-	// Docker indicators
-	if p.HasCompose {
-		line.WriteString("  🐙")
-	} else if p.HasDockerfile {
-		line.WriteString("  🐳")
+		// Git branch
+		if p.GitBranch != "" {
+			branch := p.GitBranch
+			if len(branch) > 20 {
+				branch = branch[:17] + "..."
+			}
+			line.WriteString(branchStyle.Render(branch))
+			if p.GitDirty {
+				line.WriteString(dirtyStyle.Render("*"))
+			}
+		}
+
+		// Docker indicators
+		if p.HasCompose {
+			line.WriteString("  🐙")
+		} else if p.HasDockerfile {
+			line.WriteString("  🐳")
+		}
 	}
 
 	_, _ = fmt.Fprint(w, line.String())
@@ -122,24 +160,20 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 // ProjectListModel is the model for the project list view
 type ProjectListModel struct {
-	list     list.Model
-	projects []*project.Project
-	width    int
-	height   int
+	list       list.Model
+	projects   []*project.Project
+	width      int
+	height     int
+	showAll    bool // When true, show all projects regardless of depth (for group views)
 }
 
 // NewProjectListModel creates a new project list model
 func NewProjectListModel(projects []*project.Project) ProjectListModel {
-	items := make([]list.Item, len(projects))
-	for i, p := range projects {
-		items[i] = ProjectListItem{Project: p}
-	}
-
 	// Use our custom compact delegate
 	delegate := itemDelegate{}
 
 	// Initialize with reasonable default size (will be updated on WindowSizeMsg)
-	l := list.New(items, delegate, 80, 24)
+	l := list.New([]list.Item{}, delegate, 80, 24)
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
@@ -149,12 +183,48 @@ func NewProjectListModel(projects []*project.Project) ProjectListModel {
 	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(tui.Muted)
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(tui.Muted)
 
-	return ProjectListModel{
+	m := ProjectListModel{
 		list:     l,
 		projects: projects,
 		width:    80,
 		height:   24,
+		showAll:  false, // Main list only shows top-level
 	}
+	
+	// Build the visible items list
+	m.RebuildList()
+	
+	return m
+}
+
+// NewGroupListModel creates a project list model for showing group contents (shows all items)
+func NewGroupListModel(projects []*project.Project) ProjectListModel {
+	// Use our custom compact delegate
+	delegate := itemDelegate{}
+
+	// Initialize with reasonable default size
+	l := list.New([]list.Item{}, delegate, 80, 24)
+	l.Title = ""
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.SetShowHelp(false)
+	l.SetShowPagination(true)
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(tui.Muted)
+	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(tui.Muted)
+
+	m := ProjectListModel{
+		list:     l,
+		projects: projects,
+		width:    80,
+		height:   24,
+		showAll:  true, // Group list shows all items
+	}
+	
+	// Build the visible items list
+	m.RebuildList()
+	
+	return m
 }
 
 func (m ProjectListModel) Init() tea.Cmd {
@@ -187,6 +257,23 @@ func (m ProjectListModel) SelectedProject() *project.Project {
 	return item.(ProjectListItem).Project
 }
 
+// RebuildList rebuilds the list items
+func (m *ProjectListModel) RebuildList() {
+	visibleProjects := make([]*project.Project, 0)
+	for _, p := range m.projects {
+		// Show all items if showAll is true, otherwise only top-level
+		if m.showAll || p.Depth == 0 {
+			visibleProjects = append(visibleProjects, p)
+		}
+	}
+
+	items := make([]list.Item, len(visibleProjects))
+	for i, p := range visibleProjects {
+		items[i] = ProjectListItem{Project: p}
+	}
+	m.list.SetItems(items)
+}
+
 // ProjectList renders a simple project list
 func ProjectList(projects []*project.Project, cursor int) string {
 	if len(projects) == 0 {
@@ -201,10 +288,18 @@ func ProjectList(projects []*project.Project, cursor int) string {
 			prefix = "> "
 		}
 
-		// Project name
+		// Add indentation based on depth
+		indent := strings.Repeat("  ", p.Depth)
+
+		// Project name with nesting indicator
 		name := p.Name
+		if p.SubProjectCount > 0 {
+			name = name + fmt.Sprintf(" (%d)", p.SubProjectCount)
+		}
 		if i == cursor {
-			name = tui.SelectedStyle.Render(name)
+			name = tui.SelectedStyle.Render(indent + name)
+		} else {
+			name = indent + name
 		}
 
 		// Language icon

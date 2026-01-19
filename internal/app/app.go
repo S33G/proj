@@ -26,6 +26,7 @@ type View int
 const (
 	ViewLoading View = iota
 	ViewProjects
+	ViewGroup
 	ViewActions
 	ViewNewProject
 	ViewExecuting
@@ -41,7 +42,10 @@ type Model struct {
 	view            View
 	projects        []*project.Project
 	selectedProject *project.Project
+	selectedGroup   *project.Project   // Current group being viewed
+	groupProjects   []*project.Project // Projects within the selected group
 	projectList     views.ProjectListModel
+	groupList       views.ProjectListModel
 	actionMenu      views.ActionMenuModel
 	submenuStack    []views.ActionMenuModel // Stack for nested submenus
 	newProject      views.NewProjectModel
@@ -206,6 +210,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.projects = project.Sort(m.projects, m.currentSortBy)
 			// Update project list with sorted projects
 			m.projectList = views.NewProjectListModel(m.projects)
+			// Rebuild to apply expanded/collapsed state
+			m.projectList.RebuildList()
 			m.updateSizes()
 			return m, nil
 		case key.Matches(msg, m.keys.New):
@@ -215,8 +221,35 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.newProject.Init()
 		case key.Matches(msg, m.keys.Enter):
 			if m.selectedProject = m.projectList.SelectedProject(); m.selectedProject != nil {
+				// If this is a pure group (not a project), navigate into it
+				if m.selectedProject.IsGroup {
+					m.selectedGroup = m.selectedProject
+					// Find child projects for this group
+					m.groupProjects = m.getChildProjects(m.selectedProject.Path)
+					m.groupList = views.NewGroupListModel(m.groupProjects)
+					m.view = ViewGroup
+					m.updateSizes()
+					return m, nil
+				}
+				
 				// Get built-in actions
 				actions := views.DefaultActions(m.selectedProject, m.config.Actions.EnableGitOperations, m.config.Actions.EnableTestRunner)
+
+				// If this is a monorepo (project with sub-projects), add "Show child projects" action
+				if m.selectedProject.SubProjectCount > 0 {
+					childAction := views.Action{
+						ID:    "show_children",
+						Label: fmt.Sprintf("📂 Show child projects (%d)", m.selectedProject.SubProjectCount),
+						Desc:  "View projects within this monorepo",
+					}
+					// Insert after "Open in editor" (usually index 1)
+					insertIdx := 1
+					if len(actions) > insertIdx {
+						actions = append(actions[:insertIdx+1], append([]views.Action{childAction}, actions[insertIdx+1:]...)...)
+					} else {
+						actions = append([]views.Action{childAction}, actions...)
+					}
+				}
 
 				// Get plugin actions
 				if m.pluginRegistry != nil {
@@ -250,6 +283,56 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+	case ViewGroup:
+		switch {
+		case key.Matches(msg, m.keys.Back):
+			// Back to main project list
+			m.view = ViewProjects
+			m.selectedGroup = nil
+			m.groupProjects = nil
+			return m, nil
+		case key.Matches(msg, m.keys.Quit):
+			return m, tea.Quit
+		case key.Matches(msg, m.keys.New):
+			// Create new project inside the group
+			m.newProject = views.NewNewProjectModel()
+			m.view = ViewNewProject
+			m.updateSizes()
+			return m, m.newProject.Init()
+		case key.Matches(msg, m.keys.Enter):
+			if m.selectedProject = m.groupList.SelectedProject(); m.selectedProject != nil {
+				// Get built-in actions
+				actions := views.DefaultActions(m.selectedProject, m.config.Actions.EnableGitOperations, m.config.Actions.EnableTestRunner)
+
+				// Get plugin actions
+				if m.pluginRegistry != nil {
+					pluginActions := m.getPluginActions(m.selectedProject)
+					if len(actions) > 0 {
+						backIdx := len(actions) - 1
+						for i, a := range actions {
+							if a.ID == "back" {
+								backIdx = i
+								break
+							}
+						}
+						actions = append(actions[:backIdx], append(pluginActions, actions[backIdx:]...)...)
+					} else {
+						actions = append(actions, pluginActions...)
+					}
+				}
+
+				m.actionMenu = views.NewActionMenuModel(m.selectedProject, actions)
+				m.view = ViewActions
+				m.updateSizes()
+			}
+			return m, nil
+		default:
+			// Pass other keys to the list for navigation
+			var cmd tea.Cmd
+			m.groupList, cmd = m.groupList.Update(msg)
+			return m, cmd
+		}
+
 	case ViewActions:
 		switch {
 		case key.Matches(msg, m.keys.Back):
@@ -260,8 +343,12 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.submenuStack = m.submenuStack[:len(m.submenuStack)-1]
 				m.updateSizes()
 			} else {
-				// Back to project list
-				m.view = ViewProjects
+				// Back to project list (or group list if we came from there)
+				if m.selectedGroup != nil {
+					m.view = ViewGroup
+				} else {
+					m.view = ViewProjects
+				}
 				m.selectedProject = nil
 			}
 			return m, nil
@@ -277,10 +364,24 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						m.submenuStack = m.submenuStack[:len(m.submenuStack)-1]
 						m.updateSizes()
 					} else {
-						// Back to project list
-						m.view = ViewProjects
+						// Back to project list (or group list if we came from there)
+						if m.selectedGroup != nil {
+							m.view = ViewGroup
+						} else {
+							m.view = ViewProjects
+						}
 						m.selectedProject = nil
 					}
+					return m, nil
+				}
+
+				// Handle "Show child projects" for monorepos
+				if action.ID == "show_children" {
+					m.selectedGroup = m.selectedProject
+					m.groupProjects = m.getChildProjects(m.selectedProject.Path)
+					m.groupList = views.NewGroupListModel(m.groupProjects)
+					m.view = ViewGroup
+					m.updateSizes()
 					return m, nil
 				}
 
@@ -322,14 +423,24 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ViewNewProject:
 		switch {
 		case key.Matches(msg, m.keys.Back):
-			m.view = ViewProjects
+			// Go back to the appropriate view
+			if m.selectedGroup != nil {
+				m.view = ViewGroup
+			} else {
+				m.view = ViewProjects
+			}
 			return m, nil
 		case key.Matches(msg, m.keys.Enter):
 			projectName := m.newProject.Value()
 			if projectName != "" {
 				m.view = ViewExecuting
 				m.message = fmt.Sprintf("Creating project: %s...", projectName)
-				return m, createProject(projectName, m.config.ReposPath)
+				// Create in group path if we're inside a group, otherwise use repos path
+				basePath := m.config.ReposPath
+				if m.selectedGroup != nil {
+					basePath = m.selectedGroup.Path
+				}
+				return m, createProject(projectName, basePath)
 			}
 			return m, nil
 		default:
@@ -410,6 +521,10 @@ func (m Model) updateView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.projects) > 0 {
 			m.projectList, cmd = m.projectList.Update(msg)
 		}
+	case ViewGroup:
+		if len(m.groupProjects) > 0 {
+			m.groupList, cmd = m.groupList.Update(msg)
+		}
 	case ViewActions:
 		m.actionMenu, cmd = m.actionMenu.Update(msg)
 	case ViewNewProject:
@@ -434,6 +549,9 @@ func (m *Model) updateSizes() {
 	if len(m.projects) > 0 {
 		m.projectList.SetSize(m.width-4, contentHeight)
 	}
+	if len(m.groupProjects) > 0 {
+		m.groupList.SetSize(m.width-4, contentHeight)
+	}
 	if m.view == ViewActions {
 		m.actionMenu.SetSize(m.width-4, contentHeight)
 	}
@@ -454,6 +572,9 @@ func (m Model) View() string {
 
 	case ViewProjects:
 		return m.renderProjectsView()
+
+	case ViewGroup:
+		return m.renderGroupView()
 
 	case ViewActions:
 		return m.renderActionsView()
@@ -499,7 +620,7 @@ func (m Model) renderProjectsView() string {
 	sortLabel := m.getSortLabel()
 	sortInfo := tui.SubtitleStyle.Render(fmt.Sprintf("Sort: %s", sortLabel))
 
-	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  s: sort  •  n: new  •  q: quit")
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select/expand  •  s: sort  •  n: new  •  q: quit")
 
 	errorMsg := ""
 	if m.err != nil {
@@ -521,6 +642,46 @@ func (m Model) renderProjectsView() string {
 			help,
 		),
 	)
+}
+
+// renderGroupView renders the group projects list view
+func (m Model) renderGroupView() string {
+	groupName := m.selectedGroup.Name
+	header := tui.TitleStyle.Render(fmt.Sprintf("📁 %s", groupName))
+
+	content := ""
+	if len(m.groupProjects) == 0 {
+		content = tui.SubtitleStyle.Render("No projects found in this group. Press 'n' to create one.")
+	} else {
+		content = m.groupList.View()
+	}
+
+	projectCount := tui.SubtitleStyle.Render(fmt.Sprintf("%d projects", len(m.groupProjects)))
+
+	help := tui.HelpStyle.Render("↑/↓: navigate  •  enter: select  •  n: new project  •  esc: back  •  q: quit")
+
+	return tui.ContainerStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			header,
+			projectCount,
+			"",
+			content,
+			"",
+			help,
+		),
+	)
+}
+
+// getChildProjects returns child projects for a given parent path
+func (m Model) getChildProjects(parentPath string) []*project.Project {
+	children := make([]*project.Project, 0)
+	for _, p := range m.projects {
+		if p.ParentPath == parentPath && p.Depth > 0 {
+			children = append(children, p)
+		}
+	}
+	return children
 }
 
 // renderActionsView renders the actions menu view
@@ -679,6 +840,11 @@ func loadProjects(cfg *config.Config) tea.Cmd {
 
 		return projectsLoadedMsg(projects)
 	}
+}
+
+// loadProjects is a method wrapper for loading projects
+func (m Model) loadProjects() tea.Cmd {
+	return loadProjects(m.config)
 }
 
 // executeAction executes an action
