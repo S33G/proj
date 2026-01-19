@@ -140,8 +140,8 @@ func (c *RPCClient) Call(method string, params interface{}) (json.RawMessage, er
 
 // Close closes the RPC client and terminates the plugin
 func (c *RPCClient) Close() error {
-	c.stdin.Close()
-	c.stdout.Close()
-	c.stderr.Close()
+	_ = c.stdin.Close()
+	_ = c.stdout.Close()
+	_ = c.stderr.Close()
 	return c.cmd.Wait()
 }

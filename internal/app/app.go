@@ -853,5 +853,5 @@ func (d branchDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 		str = tui.SubtitleStyle.Render(str)
 	}
 
-	fmt.Fprint(w, str)
+	_, _ = fmt.Fprint(w, str)
 }

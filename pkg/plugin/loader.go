@@ -104,7 +104,7 @@ func (p *ExternalPlugin) Shutdown() error {
 	}
 
 	// Call shutdown method (ignore errors)
-	p.client.Call("shutdown", nil)
+	_, _ = p.client.Call("shutdown", nil)
 
 	// Close client
 	return p.client.Close()

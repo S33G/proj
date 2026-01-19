@@ -118,7 +118,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		line.WriteString("  🐳")
 	}
 
-	fmt.Fprint(w, line.String())
+	_, _ = fmt.Fprint(w, line.String())
 }
 
 // ProjectListModel is the model for the project list view

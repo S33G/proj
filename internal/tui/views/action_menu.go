@@ -100,7 +100,7 @@ func (d actionDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 		line.WriteString(descStyle.Render(a.Desc))
 	}
 
-	fmt.Fprint(w, line.String())
+	_, _ = fmt.Fprint(w, line.String())
 }
 
 // ActionMenuModel is the model for the action menu

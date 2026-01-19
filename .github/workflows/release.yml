@@ -11,7 +11,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,9 +56,9 @@ jobs:
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           BINARY_NAME="proj-${{ matrix.os }}-${{ matrix.arch }}"
-          
+
           go build -ldflags "-s -w -X main.version=${VERSION}" -o "${BINARY_NAME}" ./cmd/proj
-          
+
           # Create checksum for raw binary
           sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
 

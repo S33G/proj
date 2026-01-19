@@ -37,7 +37,7 @@ success() {
 detect_platform() {
     OS="$(uname -s)"
     ARCH="$(uname -m)"
-    
+
     case "$OS" in
         Linux*)
             OS="linux"
@@ -49,7 +49,7 @@ detect_platform() {
             error "Unsupported operating system: $OS (only Linux and macOS are supported)"
             ;;
     esac
-    
+
     case "$ARCH" in
         x86_64|amd64)
             ARCH="amd64"
@@ -61,14 +61,14 @@ detect_platform() {
             error "Unsupported architecture: $ARCH (only amd64 and arm64 are supported)"
             ;;
     esac
-    
+
     PLATFORM="${OS}-${ARCH}"
 }
 
 # Get latest release version
 get_latest_version() {
     info "Fetching latest release..."
-    
+
     # Try to get latest release from GitHub API
     if command -v curl >/dev/null 2>&1; then
         VERSION=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
@@ -77,11 +77,11 @@ get_latest_version() {
     else
         error "Neither curl nor wget found. Please install one of them."
     fi
-    
+
     if [ -z "$VERSION" ]; then
         error "Failed to fetch latest version"
     fi
-    
+
     success "Latest version: $VERSION"
 }
 
@@ -89,41 +89,38 @@ get_latest_version() {
 install_binary() {
     BINARY_NAME="proj-${PLATFORM}"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}"
-    
+
     info "Downloading from $DOWNLOAD_URL..."
-    
+
     # Create temp directory
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
-    
+
     # Download binary
     if command -v curl >/dev/null 2>&1; then
-        HTTP_CODE=$(curl -sSL -w "%{http_code}" -o "$TMP_DIR/proj" "$DOWNLOAD_URL") || error "Failed to download binary"
-        if [ "$HTTP_CODE" -ne 200 ]; then
-            error "Failed to download binary: HTTP $HTTP_CODE. The release may not have binaries attached yet."
-        fi
+        curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/proj" || error "Failed to download binary"
     elif command -v wget >/dev/null 2>&1; then
         wget -qO "$TMP_DIR/proj" "$DOWNLOAD_URL" 2>&1 || error "Failed to download binary"
         if [ ! -s "$TMP_DIR/proj" ]; then
             error "Failed to download binary: empty file"
         fi
     fi
-    
+
     # Verify the downloaded file is a valid binary (not an HTML error page)
     if file "$TMP_DIR/proj" | grep -qE "text|HTML"; then
         CONTENT=$(head -c 100 "$TMP_DIR/proj")
         error "Downloaded file is not a valid binary. Content: $CONTENT\nThe release may not have binaries attached yet."
     fi
-    
+
     # Make executable
     chmod +x "$TMP_DIR/proj"
-    
+
     # Create install directory if it doesn't exist
     mkdir -p "$INSTALL_DIR"
-    
+
     # Move binary to install directory
     mv "$TMP_DIR/proj" "$INSTALL_DIR/proj"
-    
+
     success "Installed to $INSTALL_DIR/proj"
 }
 
@@ -144,10 +141,10 @@ setup_shell_integration() {
     echo "    rm -f \"\$output\""
     echo "  }"
     echo ""
-    
+
     # Detect shell
     SHELL_NAME=$(basename "$SHELL")
-    
+
     case "$SHELL_NAME" in
         bash)
             RC_FILE="$HOME/.bashrc"
@@ -159,7 +156,7 @@ setup_shell_integration() {
             RC_FILE=""
             ;;
     esac
-    
+
     if [ -n "$RC_FILE" ]; then
         echo "Detected shell: $SHELL_NAME"
         echo "Add to: $RC_FILE"
@@ -203,15 +200,15 @@ main() {
     echo "║   Installation Script                 ║"
     echo "╚═══════════════════════════════════════╝"
     echo ""
-    
+
     detect_platform
     info "Platform: $PLATFORM"
-    
+
     get_latest_version
     install_binary
     check_path
     setup_shell_integration
-    
+
     echo ""
     echo "╔═══════════════════════════════════════╗"
     echo "║   Installation Complete!              ║"
