@@ -247,8 +247,8 @@ chmod +x ~/.local/bin/proj
 Shell integration is not set up.
 
 **Solution:**
-1. Add the shell function from [Step 5](#5-shell-integration-highly-recommended)
-2. Reload your shell: `source ~/.bashrc`
+1. See [Shell Integration](#shell-integration) section below
+2. Reload your shell: `source ~/.bashrc` or start a new terminal
 3. Use `proj` (the function) not `~/.local/bin/proj` (the binary)
 
 ### Old version still running
@@ -322,6 +322,73 @@ git clone https://github.com/s33g/proj.git
 cd proj
 make install
 ```
+
+## Shell Integration
+
+Shell integration allows `proj` to change your current directory when you navigate to a project. This feature is optional but highly recommended.
+
+### Automatic Setup
+
+The install script will automatically detect your shell and offer to set up integration:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/install.sh | bash
+```
+
+### Manual Setup
+
+If automatic setup doesn't work or you prefer manual setup:
+
+#### Bash
+```bash
+# Download the integration script
+curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/shells/bash.sh -o ~/.config/proj/bash_integration.sh
+
+# Add to ~/.bashrc
+echo 'source ~/.config/proj/bash_integration.sh' >> ~/.bashrc
+
+# Reload shell
+source ~/.bashrc
+```
+
+#### Zsh
+```bash
+# Download the integration script  
+curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/shells/zsh.sh -o ~/.config/proj/zsh_integration.sh
+
+# Add to ~/.zshrc
+echo 'source ~/.config/proj/zsh_integration.sh' >> ~/.zshrc
+
+# Reload shell
+source ~/.zshrc
+```
+
+#### Fish
+```bash
+# Download the integration script
+curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/shells/fish.fish -o ~/.config/fish/conf.d/proj.fish
+
+# Integration will be active in new fish sessions
+```
+
+### Unsupported Shells
+
+For shells not listed above (PowerShell, Nushell, Elvish, etc.), you can:
+
+1. **Contribute support**: See [Adding Shell Support](CONTRIBUTING.md#adding-shell-support)
+2. **Manual integration**: Create your own wrapper function based on the examples
+3. **Use without integration**: `proj` works fine without shell integration, you just won't get automatic directory changes
+
+### How It Works
+
+Shell integration works by:
+1. Creating a wrapper function that replaces the `proj` command
+2. Running the actual `proj` binary with your arguments
+3. Checking for a temporary file containing the target directory
+4. Changing to that directory if it exists
+5. Cleaning up the temporary file
+
+The temporary file is created at `~/.config/proj/.proj_last_dir` when you select a project in the TUI.
 
 ## Installation Locations
 

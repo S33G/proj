@@ -264,6 +264,108 @@ make test-coverage
 - Add comments to exported types and functions
 - Include examples where helpful
 
+## Adding Shell Support
+
+proj supports shell integration to enable directory changing from the TUI. We welcome contributions for additional shell support!
+
+### How Shell Integration Works
+
+Shell integration uses a wrapper function that:
+1. Runs the actual `proj` binary with user arguments
+2. Checks for a temporary file at `~/.config/proj/.proj_last_dir`
+3. Changes to the directory specified in that file (if it exists)
+4. Cleans up the temporary file
+
+The Go binary writes to this file when a project is selected in the TUI.
+
+### Adding a New Shell
+
+To add support for a new shell:
+
+1. **Create the integration script:**
+   ```bash
+   touch scripts/shells/yourshell.ext
+   ```
+
+2. **Implement the wrapper function** following this pattern:
+   ```shell
+   # Your shell's syntax for defining functions
+   proj() {
+       # Store original directory
+       original_dir=$(pwd)  # or your shell's equivalent
+       
+       # Run the actual proj binary
+       command proj "$@"    # or your shell's equivalent for passing args
+       
+       # Check for directory change file
+       proj_dir_file="$HOME/.config/proj/.proj_last_dir"
+       if [ -f "$proj_dir_file" ]; then
+           target_dir=$(cat "$proj_dir_file")
+           if [ -d "$target_dir" ] && [ "$target_dir" != "$original_dir" ]; then
+               echo "Changing to: $target_dir"
+               cd "$target_dir"
+           fi
+           rm -f "$proj_dir_file"
+       fi
+   }
+   ```
+
+3. **Add auto-setup detection** for when the script is sourced:
+   ```shell
+   # Your shell's method for detecting if sourced vs executed
+   if [[ sourced_condition ]]; then
+       setup_function_or_direct_call
+   fi
+   ```
+
+4. **Update the installer script** in `scripts/install.sh`:
+   - Add your shell to the case statement in `setup_shell_integration()`
+   - Create a `setup_yourshell_integration()` function
+   - Follow the pattern used by bash/zsh/fish functions
+
+5. **Test your integration:**
+   ```bash
+   # Source your script manually
+   source scripts/shells/yourshell.ext
+   
+   # Test the proj function
+   proj
+   # Navigate to a project and verify directory changes work
+   ```
+
+6. **Add examples to documentation:**
+   - Add manual setup instructions to `docs/INSTALL.md`
+   - Include your shell in supported shells list
+
+### Supported Shells
+
+Currently supported:
+- **bash** (`scripts/shells/bash.sh`)
+- **zsh** (`scripts/shells/zsh.sh`) 
+- **fish** (`scripts/shells/fish.fish`)
+
+Requested shells (contributions welcome):
+- PowerShell
+- Nushell  
+- Elvish
+- Oil
+- Ion
+- Xonsh
+
+### Shell Integration Examples
+
+See existing implementations for reference:
+- [Bash integration](../scripts/shells/bash.sh)
+- [Zsh integration](../scripts/shells/zsh.sh)
+- [Fish integration](../scripts/shells/fish.fish)
+
+When contributing shell support, please ensure:
+- The wrapper function preserves all `proj` arguments
+- Error handling doesn't break the shell session  
+- The integration works in both interactive and non-interactive modes
+- Clean up temporary files properly
+- Follow your shell's best practices for function definitions
+
 ## Pull Request Process
 
 1. **Ensure all tests pass:**

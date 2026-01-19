@@ -129,6 +129,40 @@ When you select a project, these actions are available:
 
 > See [docs/DOCKER.md](docs/DOCKER.md) for full Docker integration guide
 
+## Shell Integration
+
+Shell integration allows `proj` to change your terminal's working directory when you navigate to a project. 
+
+### Automatic Setup
+
+The installer will detect your shell and set up integration automatically:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/install.sh | bash
+```
+
+### Supported Shells
+
+- **Bash** - Full support with auto-detection
+- **Zsh** - Full support with auto-detection  
+- **Fish** - Full support with auto-detection
+- **Others** - Manual setup required (see [docs](docs/INSTALL.md#shell-integration))
+
+### Manual Setup
+
+For manual integration or unsupported shells, see:
+- [Installation Guide](docs/INSTALL.md#shell-integration) - Setup instructions
+- [Contributing Guide](docs/CONTRIBUTING.md#adding-shell-support) - Adding new shell support
+
+### How It Works
+
+1. The installer creates a wrapper function that replaces the `proj` command
+2. When you select a project in the TUI, `proj` writes the target directory to a temporary file
+3. The wrapper function reads this file and changes to that directory
+4. Your shell's working directory is now in the selected project
+
+Without shell integration, `proj` still works perfectly - you just won't get automatic directory changes.
+
 ## Configuration
 
 Configuration is stored in `~/.config/proj/config.json`.

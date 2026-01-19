@@ -136,6 +136,114 @@ check_path() {
     fi
 }
 
+# Setup shell integration
+setup_shell_integration() {
+    echo ""
+    info "Setting up shell integration..."
+    
+    # Detect current shell
+    CURRENT_SHELL=$(basename "$SHELL" 2>/dev/null || echo "unknown")
+    
+    case "$CURRENT_SHELL" in
+        bash)
+            info "Detected bash shell"
+            setup_bash_integration
+            ;;
+        zsh)
+            info "Detected zsh shell"
+            setup_zsh_integration
+            ;;
+        fish)
+            info "Detected fish shell"
+            setup_fish_integration
+            ;;
+        *)
+            warn "Shell '$CURRENT_SHELL' is not directly supported"
+            show_manual_integration_help
+            ;;
+    esac
+}
+
+# Setup bash integration
+setup_bash_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/bash.sh"
+    local target_file="$HOME/.config/proj/bash_integration.sh"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$shell_script_url" -o "$target_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$target_file" "$shell_script_url"
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Downloaded bash integration to $target_file"
+    echo "Add this line to your ~/.bashrc:"
+    echo "  ${GREEN}source $target_file${NC}"
+}
+
+# Setup zsh integration
+setup_zsh_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/zsh.sh"
+    local target_file="$HOME/.config/proj/zsh_integration.sh"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$shell_script_url" -o "$target_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$target_file" "$shell_script_url"
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Downloaded zsh integration to $target_file"
+    echo "Add this line to your ~/.zshrc:"
+    echo "  ${GREEN}source $target_file${NC}"
+}
+
+# Setup fish integration
+setup_fish_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/fish.fish"
+    local target_file="$HOME/.config/fish/conf.d/proj.fish"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$shell_script_url" -o "$target_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$target_file" "$shell_script_url"
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Fish integration installed to $target_file"
+    info "Fish integration will be active in new sessions"
+}
+
+# Show manual integration help
+show_manual_integration_help() {
+    echo ""
+    echo "For manual shell integration setup, please see:"
+    echo "  ${GREEN}https://github.com/${REPO}/blob/main/docs/INSTALL.md#shell-integration${NC}"
+    echo "  ${GREEN}https://github.com/${REPO}/blob/main/docs/CONTRIBUTING.md#adding-shell-support${NC}"
+    echo ""
+    echo "Available shell integrations:"
+    echo "  • bash:  https://github.com/${REPO}/blob/main/scripts/shells/bash.sh"
+    echo "  • zsh:   https://github.com/${REPO}/blob/main/scripts/shells/zsh.sh" 
+    echo "  • fish:  https://github.com/${REPO}/blob/main/scripts/shells/fish.fish"
+    echo ""
+    echo "To contribute support for your shell, see the contribution guide above."
+}
+
 # Main installation
 main() {
     echo ""
@@ -151,6 +259,7 @@ main() {
     get_latest_version
     install_binary
     check_path
+    setup_shell_integration
 
     echo ""
     echo "╔═══════════════════════════════════════╗"
