@@ -96,11 +96,12 @@ func New(cfg *config.Config) Model {
 type errMsg error
 type projectsLoadedMsg []*project.Project
 type actionCompleteMsg struct {
-	success     bool
-	message     string
-	actionLabel string
-	cdPath      string
-	execCmd     []string
+	success      bool
+	message      string
+	actionLabel  string
+	cdPath       string
+	execCmd      []string
+	shouldReload bool // Whether to reload projects after this action
 }
 type branchesLoadedMsg []string
 type branchSwitchedMsg struct {
@@ -157,7 +158,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resultViewport = viewport.New(m.width-4, m.height-10)
 		m.resultViewport.SetContent(msg.message)
 		m.view = ViewResult
-		return m, nil
+		// If this action should reload projects (like project creation), do it
+		var cmd tea.Cmd
+		if msg.shouldReload {
+			cmd = m.loadProjectsAndRefreshGroup()
+		}
+		return m, cmd
 
 	case branchesLoadedMsg:
 		// Create branch list
@@ -422,8 +428,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case ViewNewProject:
 		switch {
-		case key.Matches(msg, m.keys.Back):
-			// Go back to the appropriate view
+		case key.Matches(msg, m.keys.Back) && msg.String() != "backspace":
+			// Go back to the appropriate view (but not on backspace - let text input handle that)
 			if m.selectedGroup != nil {
 				m.view = ViewGroup
 			} else {
@@ -847,6 +853,40 @@ func (m Model) loadProjects() tea.Cmd {
 	return loadProjects(m.config)
 }
 
+// loadProjectsAndRefreshGroup loads projects and refreshes group view if currently in a group
+func (m *Model) loadProjectsAndRefreshGroup() tea.Cmd {
+	return func() tea.Msg {
+		// Load projects first
+		scanner := project.NewScanner(m.config)
+		projects, err := scanner.Scan(m.config.ReposPath)
+		if err != nil {
+			return errMsg(err)
+		}
+
+		// Sort projects
+		sortBy := project.SortBy(m.config.Display.SortBy)
+		projects = project.Sort(projects, sortBy)
+
+		// Update the model's projects
+		m.projects = projects
+
+		// If we're currently viewing a group, refresh the group projects
+		if m.selectedGroup != nil {
+			m.groupProjects = m.getChildProjects(m.selectedGroup.Path)
+			m.groupList = views.NewGroupListModel(m.groupProjects)
+			m.updateSizes()
+		}
+
+		// Update the main project list too
+		if len(m.projects) > 0 {
+			m.projectList = views.NewProjectListModel(m.projects)
+			m.updateSizes()
+		}
+
+		return projectsLoadedMsg(projects)
+	}
+}
+
 // executeAction executes an action
 func executeAction(actionID string, actionLabel string, actionCommand string, proj *project.Project, cfg *config.Config, registry *plugin.Registry) tea.Cmd {
 	return func() tea.Msg {
@@ -936,13 +976,16 @@ func createProject(name string, reposPath string) tea.Cmd {
 		if err := os.MkdirAll(projectPath, 0755); err != nil {
 			return actionCompleteMsg{
 				success: false,
-				message: fmt.Sprintf("Failed to create project: %v", err),
+				message: fmt.Sprintf("Failed to create project directory %s: %v", projectPath, err),
+				actionLabel: "Create Project",
 			}
 		}
 
 		return actionCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("Created project: %s", name),
+			message: fmt.Sprintf("Successfully created project: %s\nLocation: %s", name, projectPath),
+			actionLabel: "Create Project",
+			shouldReload: true, // Reload projects to show the new project
 		}
 	}
 }
