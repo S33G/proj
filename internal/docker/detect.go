@@ -14,12 +14,6 @@ type DockerInfo struct {
 	ComposeFiles  []string // All compose files found
 }
 
-// dockerfilePatterns are patterns that identify Dockerfiles
-var dockerfilePatterns = []string{
-	"Dockerfile",
-	"Dockerfile.*", // Dockerfile.dev, Dockerfile.prod, etc.
-}
-
 // composeFileNames are exact filenames for Docker Compose files
 var composeFileNames = []string{
 	"docker-compose.yml",
