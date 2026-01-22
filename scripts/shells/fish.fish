@@ -14,8 +14,7 @@ function setup_proj_fish_integration
         
         # Check if a .proj_last_dir file exists (created by proj on directory change)
         set proj_dir_file "$HOME/.config/proj/.proj_last_dir"
-        if test -f "$proj_dir_file"
-            set target_dir (cat "$proj_dir_file")
+        if read -l target_dir < "$proj_dir_file"
             if test -d "$target_dir" -a "$target_dir" != "$original_dir"
                 echo "Changing to: $target_dir"
                 cd "$target_dir"
