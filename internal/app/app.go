@@ -865,38 +865,12 @@ func (m Model) loadProjects() tea.Cmd {
 	return loadProjects(m.config)
 }
 
-// loadProjectsAndRefreshGroup loads projects and refreshes group view if currently in a group
+// loadProjectsAndRefreshGroup loads projects and lets Update refresh the view
 func (m *Model) loadProjectsAndRefreshGroup() tea.Cmd {
-	return func() tea.Msg {
-		// Load projects first
-		scanner := project.NewScanner(m.config)
-		projects, err := scanner.Scan(m.config.ReposPath)
-		if err != nil {
-			return errMsg(err)
-		}
-
-		// Sort projects
-		sortBy := project.SortBy(m.config.Display.SortBy)
-		projects = project.Sort(projects, sortBy)
-
-		// Update the model's projects
-		m.projects = projects
-
-		// If we're currently viewing a group, refresh the group projects
-		if m.selectedGroup != nil {
-			m.groupProjects = m.getChildProjects(m.selectedGroup.Path)
-			m.groupList = views.NewGroupListModel(m.groupProjects)
-			m.updateSizes()
-		}
-
-		// Update the main project list too
-		if len(m.projects) > 0 {
-			m.projectList = views.NewProjectListModel(m.projects)
-			m.updateSizes()
-		}
-
-		return projectsLoadedMsg(projects)
-	}
+	// Delegate to the existing project loading command. The model and any
+	// relevant views will be updated in the Update method when the
+	// corresponding message (e.g. projectsLoadedMsg) is received.
+	return loadProjects(m.config)
 }
 
 // executeAction executes an action
