@@ -48,9 +48,7 @@ proj --config   # Open config in $EDITOR
   },
   "display": {
     "showHiddenDirs": false,
-    "sortBy": "lastModified",
-    "showGitStatus": true,
-    "showLanguage": true
+    "sortBy": "lastModified"
   },
   "excludePatterns": [
     ".git",
@@ -301,36 +299,6 @@ How to sort projects in the list.
 {
   "display": {
     "sortBy": "name"
-  }
-}
-```
-
-#### display.showGitStatus
-
-**Type:** `boolean`  
-**Default:** `true`
-
-Whether to show git branch and dirty status in the project list.
-
-```json
-{
-  "display": {
-    "showGitStatus": false
-  }
-}
-```
-
-#### display.showLanguage
-
-**Type:** `boolean`  
-**Default:** `true`
-
-Whether to show detected language in the project list.
-
-```json
-{
-  "display": {
-    "showLanguage": false
   }
 }
 ```

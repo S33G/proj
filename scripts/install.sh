@@ -124,62 +124,6 @@ install_binary() {
     success "Installed to $INSTALL_DIR/proj"
 }
 
-# Setup shell integration
-setup_shell_integration() {
-    echo ""
-    info "Shell Integration Setup"
-    echo ""
-    echo "To enable the 'cd' command feature, add this to your shell configuration:"
-    echo ""
-    echo "  # proj - TUI project navigator"
-    echo "  proj() {"
-    echo "    local output=\$(mktemp)"
-    echo "    PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\""
-    echo "    if [ -s \"\$output\" ]; then"
-    echo "      cd \"\$(cat \"\$output\")\""
-    echo "    fi"
-    echo "    rm -f \"\$output\""
-    echo "  }"
-    echo ""
-
-    # Detect shell
-    SHELL_NAME=$(basename "$SHELL")
-
-    case "$SHELL_NAME" in
-        bash)
-            RC_FILE="$HOME/.bashrc"
-            ;;
-        zsh)
-            RC_FILE="$HOME/.zshrc"
-            ;;
-        *)
-            RC_FILE=""
-            ;;
-    esac
-
-    if [ -n "$RC_FILE" ]; then
-        echo "Detected shell: $SHELL_NAME"
-        echo "Add to: $RC_FILE"
-        echo ""
-        read -p "Would you like to add this automatically? [y/N] " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "" >> "$RC_FILE"
-            echo "# proj - TUI project navigator" >> "$RC_FILE"
-            echo "proj() {" >> "$RC_FILE"
-            echo "  local output=\$(mktemp)" >> "$RC_FILE"
-            echo "  PROJ_CD_FILE=\"\$output\" command $INSTALL_DIR/proj \"\$@\"" >> "$RC_FILE"
-            echo "  if [ -s \"\$output\" ]; then" >> "$RC_FILE"
-            echo "    cd \"\$(cat \"\$output\")\"" >> "$RC_FILE"
-            echo "  fi" >> "$RC_FILE"
-            echo "  rm -f \"\$output\"" >> "$RC_FILE"
-            echo "}" >> "$RC_FILE"
-            success "Added to $RC_FILE"
-            warn "Run 'source $RC_FILE' or restart your shell to apply changes"
-        fi
-    fi
-}
-
 # Check PATH
 check_path() {
     echo ""
@@ -190,6 +134,128 @@ check_path() {
     else
         success "$INSTALL_DIR is in your PATH"
     fi
+}
+
+# Setup shell integration
+setup_shell_integration() {
+    echo ""
+    info "Setting up shell integration..."
+    
+    # Detect current shell
+    CURRENT_SHELL=$(basename "$SHELL" 2>/dev/null || echo "unknown")
+    
+    case "$CURRENT_SHELL" in
+        bash)
+            info "Detected bash shell"
+            setup_bash_integration
+            ;;
+        zsh)
+            info "Detected zsh shell"
+            setup_zsh_integration
+            ;;
+        fish)
+            info "Detected fish shell"
+            setup_fish_integration
+            ;;
+        *)
+            warn "Shell '$CURRENT_SHELL' is not directly supported"
+            show_manual_integration_help
+            ;;
+    esac
+}
+
+# Setup bash integration
+setup_bash_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/bash.sh"
+    local target_file="$HOME/.config/proj/bash_integration.sh"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$shell_script_url" -o "$target_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$target_file" "$shell_script_url"
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Downloaded bash integration to $target_file"
+    echo "Add this line to your ~/.bashrc:"
+    echo "  ${GREEN}source $target_file${NC}"
+}
+
+# Setup zsh integration
+setup_zsh_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/zsh.sh"
+    local target_file="$HOME/.config/proj/zsh_integration.sh"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$shell_script_url" -o "$target_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$target_file" "$shell_script_url"
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Downloaded zsh integration to $target_file"
+    echo "Add this line to your ~/.zshrc:"
+    echo "  ${GREEN}source $target_file${NC}"
+}
+
+# Setup fish integration
+setup_fish_integration() {
+    local shell_script_url="https://raw.githubusercontent.com/${REPO}/main/scripts/shells/fish.fish"
+    local target_file="$HOME/.config/fish/conf.d/proj.fish"
+    
+    mkdir -p "$(dirname "$target_file")"
+    
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL "$shell_script_url" -o "$target_file"; then
+            warn "Failed to download fish integration using curl. Please see documentation for manual setup."
+            show_manual_integration_help
+            return
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -qO "$target_file" "$shell_script_url"; then
+            warn "Failed to download fish integration using wget. Please see documentation for manual setup."
+            show_manual_integration_help
+            return
+        fi
+    else
+        warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    if [ ! -s "$target_file" ]; then
+        warn "Downloaded fish integration file is empty or missing. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    success "Fish integration installed to $target_file"
+    info "Fish integration will be active in new sessions"
+}
+
+# Show manual integration help
+show_manual_integration_help() {
+    echo ""
+    echo "For manual shell integration setup, please see:"
+    echo "  ${GREEN}https://github.com/${REPO}/blob/main/docs/INSTALL.md#shell-integration${NC}"
+    echo "  ${GREEN}https://github.com/${REPO}/blob/main/docs/CONTRIBUTING.md#adding-shell-support${NC}"
+    echo ""
+    echo "Available shell integrations:"
+    echo "  • bash:  https://github.com/${REPO}/blob/main/scripts/shells/bash.sh"
+    echo "  • zsh:   https://github.com/${REPO}/blob/main/scripts/shells/zsh.sh" 
+    echo "  • fish:  https://github.com/${REPO}/blob/main/scripts/shells/fish.fish"
+    echo ""
+    echo "To contribute support for your shell, see the contribution guide above."
 }
 
 # Main installation

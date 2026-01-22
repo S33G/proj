@@ -37,8 +37,6 @@ type ThemeConfig struct {
 type DisplayConfig struct {
 	ShowHiddenDirs bool   `json:"showHiddenDirs" mapstructure:"showHiddenDirs"`
 	SortBy         string `json:"sortBy" mapstructure:"sortBy"` // "name" or "lastModified"
-	ShowGitStatus  bool   `json:"showGitStatus" mapstructure:"showGitStatus"`
-	ShowLanguage   bool   `json:"showLanguage" mapstructure:"showLanguage"`
 }
 
 // ActionsConfig holds action-related settings
@@ -88,8 +86,6 @@ func DefaultConfig() *Config {
 		Display: DisplayConfig{
 			ShowHiddenDirs: false,
 			SortBy:         "lastModified",
-			ShowGitStatus:  true,
-			ShowLanguage:   true,
 		},
 		ExcludePatterns: []string{".git", "node_modules", ".DS_Store", "__pycache__", "vendor"},
 		Actions: ActionsConfig{
@@ -194,8 +190,6 @@ func setDefaults() {
 	viper.SetDefault("theme.errorColor", "#FF6347")
 	viper.SetDefault("display.showHiddenDirs", false)
 	viper.SetDefault("display.sortBy", "lastModified")
-	viper.SetDefault("display.showGitStatus", true)
-	viper.SetDefault("display.showLanguage", true)
 	viper.SetDefault("excludePatterns", []string{".git", "node_modules", ".DS_Store", "__pycache__", "vendor"})
 	viper.SetDefault("actions.enableGitOperations", true)
 	viper.SetDefault("actions.enableTestRunner", true)
@@ -208,4 +202,12 @@ func ExpandPath(path string) string {
 		return filepath.Join(home, path[1:])
 	}
 	return path
+}
+
+// IsFeatureEnabled checks if a feature is enabled in the configuration
+// This implements the FeatureConfig interface for the features package
+func (c *Config) IsFeatureEnabled(name string) bool {
+	// For now, return false as features are not yet implemented in config
+	// This can be extended when feature flags are added to the Config struct
+	return false
 }

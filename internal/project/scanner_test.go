@@ -64,9 +64,14 @@ func TestScanner_Scan(t *testing.T) {
 func TestScanner_ScanWithHidden(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create visible and hidden directories
-	os.Mkdir(filepath.Join(tmpDir, "visible"), 0755)
-	os.Mkdir(filepath.Join(tmpDir, ".hidden"), 0755)
+	// Create visible and hidden directories with project markers
+	visibleDir := filepath.Join(tmpDir, "visible")
+	os.Mkdir(visibleDir, 0755)
+	os.WriteFile(filepath.Join(visibleDir, "go.mod"), []byte("module visible"), 0644)
+
+	hiddenDir := filepath.Join(tmpDir, ".hidden")
+	os.Mkdir(hiddenDir, 0755)
+	os.WriteFile(filepath.Join(hiddenDir, "go.mod"), []byte("module hidden"), 0644)
 
 	// Scanner with hidden dirs disabled
 	cfg := config.DefaultConfig()
@@ -120,9 +125,11 @@ func TestScanner_GitDetection(t *testing.T) {
 	exec.Command("git", "-C", gitProject, "add", ".").Run()
 	exec.Command("git", "-C", gitProject, "commit", "-m", "initial").Run()
 
-	// Create a non-git project
+	// Create a non-git project with a project marker
 	nonGitProject := filepath.Join(tmpDir, "nongit")
 	os.Mkdir(nonGitProject, 0755)
+	// Add a project marker (package.json)
+	os.WriteFile(filepath.Join(nonGitProject, "package.json"), []byte(`{"name": "nongit"}`), 0644)
 
 	// Scan
 	cfg := config.DefaultConfig()
