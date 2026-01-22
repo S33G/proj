@@ -353,7 +353,7 @@ source ~/.bashrc
 
 #### Zsh
 ```bash
-# Download the integration script  
+# Download the integration script
 curl -sSL https://raw.githubusercontent.com/s33g/proj/main/scripts/shells/zsh.sh -o ~/.config/proj/zsh_integration.sh
 
 # Add to ~/.zshrc
