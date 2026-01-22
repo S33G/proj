@@ -12,10 +12,10 @@ setup_proj_zsh_integration() {
         # Run proj with all arguments
         command proj "$@"
         
-        # Check if a .proj_last_dir file exists (created by proj on directory change)
+        # Read .proj_last_dir (created by proj on directory change), if it exists
         local proj_dir_file="$HOME/.config/proj/.proj_last_dir"
-        if [[ -f "$proj_dir_file" ]]; then
-            local target_dir="$(cat "$proj_dir_file")"
+        local target_dir
+        if target_dir=$(<"$proj_dir_file"); then
             if [[ -d "$target_dir" && "$target_dir" != "$original_dir" ]]; then
                 echo "Changing to: $target_dir"
                 cd "$target_dir"
