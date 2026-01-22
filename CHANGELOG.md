@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** - Bug fixes
 - **Security** - Security-related changes
 
+## v1.2.0 (2026-01-22)
+
+### Feat
+
+- Add per-shell integration files and improved installer
+- Enhanced multi-shell integration support
+- Add monorepo and nested project support with grouped view
+
+### Fix
+
+- Show ALL directories in groups and add F5/r refresh
+- Refresh group view after project creation
+- Show all directories in project scanner, not just those with project indicators
+- Add IsFeatureEnabled method to Config for feature interface compatibility
+
+### Refactor
+
+- Remove shell integration setup and documentation
+- Remove non-implemented config options
+
 ## v1.1.0 (2026-01-19)
 
 ### Feat
