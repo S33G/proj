@@ -317,19 +317,16 @@ func Sort(projects []*Project, by SortBy) []*Project {
 		case SortByLastModified:
 			return pi.LastModified.After(pj.LastModified)
 		case SortByLanguage:
-			// Groups without language sort after projects with language
-			langI := pi.Language
-			langJ := pj.Language
-			if pi.IsGroup {
-				langI = "zzz" // Sort groups to end when sorting by language
+			// When sorting by language, place non-group projects before groups.
+			// Within the same type (both groups or both non-groups), sort by language, then name.
+			if pi.IsGroup != pj.IsGroup {
+				// Non-group projects come first; groups go to the end.
+				return !pi.IsGroup && pj.IsGroup
 			}
-			if pj.IsGroup {
-				langJ = "zzz"
-			}
-			if langI == langJ {
+			if pi.Language == pj.Language {
 				return pi.Name < pj.Name
 			}
-			return langI < langJ
+			return pi.Language < pj.Language
 		default:
 			return pi.Name < pj.Name
 		}
