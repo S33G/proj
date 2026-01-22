@@ -216,11 +216,25 @@ setup_fish_integration() {
     mkdir -p "$(dirname "$target_file")"
     
     if command -v curl >/dev/null 2>&1; then
-        curl -sSL "$shell_script_url" -o "$target_file"
+        if ! curl -fsSL "$shell_script_url" -o "$target_file"; then
+            warn "Failed to download fish integration using curl. Please see documentation for manual setup."
+            show_manual_integration_help
+            return
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        wget -qO "$target_file" "$shell_script_url"
+        if ! wget -qO "$target_file" "$shell_script_url"; then
+            warn "Failed to download fish integration using wget. Please see documentation for manual setup."
+            show_manual_integration_help
+            return
+        fi
     else
         warn "Cannot download shell integration file. Please see documentation for manual setup."
+        show_manual_integration_help
+        return
+    fi
+    
+    if [ ! -s "$target_file" ]; then
+        warn "Downloaded fish integration file is empty or missing. Please see documentation for manual setup."
         show_manual_integration_help
         return
     fi
