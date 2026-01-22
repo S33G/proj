@@ -661,7 +661,10 @@ func (m Model) renderProjectsView() string {
 
 // renderGroupView renders the group projects list view
 func (m Model) renderGroupView() string {
-	groupName := m.selectedGroup.Name
+	groupName := "Group"
+	if m.selectedGroup != nil {
+		groupName = m.selectedGroup.Name
+	}
 	header := tui.TitleStyle.Render(fmt.Sprintf("📁 %s", groupName))
 
 	content := ""
